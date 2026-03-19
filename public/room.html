@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Sync Movie - ห้องรับชม</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3658/3658937.png">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #764ba2;
+            --accent: #28a745;
+            --danger: #ef4444;
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text: #f8fafc;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        .header {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .room-title {
+            font-weight: 800;
+            font-size: 1.2rem;
+            background: linear-gradient(to right, #667eea, #a78bfa);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .room-subtitle {
+            font-size: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .user-pill {
+            background: rgba(102, 126, 234, 0.2);
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .user-pill:hover {
+            background: rgba(102, 126, 234, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .main-layout {
+            display: flex;
+            flex: 1;
+            padding: 1rem;
+            gap: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .video-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .player-wrapper {
+            background: #000;
+            border-radius: 20px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        video,
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .sidebar {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 1.25rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-panel {
+            flex: 1;
+            min-height: 400px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            padding-right: 0.5rem;
+        }
+
+        .message {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.75rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+        }
+
+        .message-user {
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .message-time {
+            font-size: 0.65rem;
+            color: #64748b;
+            font-weight: 400;
+        }
+
+        .chat-input-area {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        input {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 10px 15px;
+            border-radius: 10px;
+            color: white;
+            flex: 1;
+            outline: none;
+        }
+
+        .btn-send {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 0 15px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .btn-exit {
+            background: var(--danger);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .controls-overlay {
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        @media (max-width: 1024px) {
+            .main-layout {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
+
+            .chat-panel {
+                min-height: 300px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .header {
+                padding: 0.75rem 1rem;
+            }
+
+            .room-title {
+                font-size: 1rem;
+            }
+
+            .main-layout {
+                padding: 0.5rem;
+                gap: 0.75rem;
+            }
+
+            .player-wrapper {
+                border-radius: 12px;
+            }
+        }
+
+        #statusMsg {
+            position: fixed;
+            top: 25px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.95), rgba(168, 85, 247, 0.95));
+            color: white;
+            padding: 12px 28px;
+            border-radius: 20px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 15px 35px rgba(99, 102, 241, 0.4);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            pointer-events: none;
+            opacity: 0;
+        }
+
+        #statusMsg.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .emoji-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+            overflow: hidden;
+        }
+
+        .floating-emoji {
+            position: absolute;
+            bottom: -50px;
+            font-size: 2rem;
+            animation: floatUp 3s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% {
+                transform: translateY(0) rotate(0);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-500px) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .emoji-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+
+        .emoji-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            padding: 5px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+
+        .emoji-btn:hover {
+            transform: scale(1.2);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* 🍔 Hamburger Menu Styles */
+        .menu-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .hamburger-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s;
+        }
+
+        .hamburger-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .menu-dropdown {
+            position: absolute;
+            top: 120%;
+            right: 0;
+            background: #1e293b;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            min-width: 180px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 1000;
+        }
+
+        .menu-dropdown.show {
+            display: flex;
+        }
+
+        .menu-item {
+            padding: 12px 16px;
+            color: #f8fafc;
+            font-size: 0.9rem;
+            text-align: left;
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: background 0.2s;
+        }
+
+        .menu-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .menu-item.danger {
+            color: #ef4444;
+        }
+
+        /* ✨ Custom Premium Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .modal-content {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2.5rem 2rem;
+            border-radius: 32px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.05),
+                0 20px 50px -12px rgba(0, 0, 0, 0.5),
+                0 0 40px rgba(99, 102, 241, 0.1);
+            transform: scale(0.9) translateY(20px);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, var(--primary), var(--secondary));
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: scale(1) translateY(0);
+        }
+
+        .modal-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1.5rem;
+            display: inline-block;
+            filter: drop-shadow(0 0 15px rgba(99, 102, 241, 0.3));
+            animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes bounceIn {
+            from {
+                transform: scale(0);
+            }
+
+            to {
+                transform: scale(1);
+            }
+        }
+
+        .modal-title {
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+            color: white;
+            letter-spacing: -0.02em;
+        }
+
+        .modal-text {
+            color: #94a3b8;
+            margin-bottom: 2.5rem;
+            line-height: 1.6;
+            font-size: 1.05rem;
+        }
+
+        .modal-btns {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .btn-modal {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            flex: 1;
+        }
+
+        .btn-confirm {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .btn-modal:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.2);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* ✨ Modern Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--danger);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+
+        .menu-item.lock-control {
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.02);
+            margin: 4px 8px;
+            border-radius: 12px;
+            padding: 10px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* ✨ Mobile Premium Visual Additions */
+        .emoji-btn:active {
+            transform: scale(1.4);
+            transition: 0.1s;
+        }
+
+        .btn-send:active,
+        .btn-exit:active,
+        .hamburger-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* Better scrolling for chat on mobile */
+        .chat-messages {
+            -webkit-overflow-scrolling: touch;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="statusMsg"><span>✨</span> <span id="statusTxt">ซิงค์สำเร็จแล้ว</span></div>
+
+    <!-- Custom Popup -->
+    <div id="customPopup" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon" id="popupIcon">🔔</div>
+            <div class="modal-title" id="popupTitle">แจ้งเตือน</div>
+            <div class="modal-text" id="popupText">ข้อความแจ้งเตือน</div>
+            <button class="btn-send" onclick="closePopup()"
+                style="width:100%; height: auto; padding: 15px; border-radius: 12px; font-weight: 800; font-size: 1rem;">ตกลง</button>
+        </div>
+    </div>
+
+    <!-- Custom Modal Confirm -->
+    <div id="confirmModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-icon" id="confirmIcon">🗑️</div>
+            <div class="modal-title" id="confirmTitle">ยืนยัน?</div>
+            <div class="modal-text" id="confirmText">คุณแน่ใจหรือไม่ที่จะดำเนินการนี้?</div>
+            <div class="modal-btns">
+                <button class="btn-modal btn-cancel" id="confirmCancelBtn"
+                    style="padding: 15px; border-radius: 12px; font-weight: 700;">ยกเลิก</button>
+                <button class="btn-modal btn-confirm" id="confirmOkBtn"
+                    style="background: var(--primary); padding: 15px; border-radius: 12px; font-weight: 700; flex: 2;">ยืนยัน</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div>
+                <div class="room-title" style="display: flex; align-items: center; gap: 8px;">
+                    <span id="roomDisplay">ห้องรับชม</span>
+                    <span id="lockStatusUI" style="font-size: 0.9rem;"></span>
+                </div>
+                <div class="room-subtitle" id="movieDisplay">กำลังสแตนด์บาย...</div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <div class="user-pill" onclick="showParticipants()"><span id="uCount">1</span> คน</div>
+            <button class="user-pill" onclick="shareRoom()"
+                style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border-color: rgba(34, 197, 94, 0.3);">
+                <span>📤</span> <span class="share-text">แชร์</span>
+            </button>
+            <div class="menu-container">
+                <button class="hamburger-btn" onclick="toggleMenu()">
+                    <span>⚙️</span>
+                </button>
+                <div id="roomMenu" class="menu-dropdown">
+                    <div id="lockControlArea" class="menu-item"
+                        style="display:none; flex-direction: column; gap: 8px; padding: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: 600; font-size: 0.9rem;">🔐 การล็อคห้อง</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="lockToggle" onchange="toggleLock()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div id="lockStatus" style="font-size: 0.75rem; color: #94a3b8; line-height: 1.4;">
+                            ห้องเปิดให้ทุกคนเข้าได้
+                        </div>
+                    </div>
+                    <button class="menu-item" onclick="showAdblockPopup()">
+                        🛡️ ติดตั้ง AdBlocker
+                    </button>
+                    <button class="menu-item" onclick="location.reload()">
+                        🔄 รีเฟรชหน้าเว็บ
+                    </button>
+                    <button id="closeRoomBtn" class="menu-item danger" onclick="closeRoom()"
+                        style="display:none; border-top: 1px solid rgba(255,255,255,0.05);">
+                        🗑️ ลบห้อง
+                    </button>
+                    <button class="menu-item danger" onclick="handleExit()">
+                        🚪 ออกจากห้อง
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-layout">
+        <div class="video-column">
+            <div class="player-wrapper">
+                <div class="emoji-container" id="emojiArea"></div>
+                <div id="playerContent" style="width:100%; height:100%;">
+                    <video id="vPlayer" controls playsinline webkit-playsinline style="width:100%; height:100%;">
+                        <source id="vSource" src="" type="video/mp4">
+                        เบราว์เซอร์ไม่รองรับ
+                    </video>
+                </div>
+            </div>
+            <!-- adControl removed per user request -->
+        </div>
+
+        <div class="sidebar">
+            <div class="panel chat-panel">
+                <div style="font-weight: 600; margin-bottom: 0.5rem; color: var(--primary);">แชทห้อง</div>
+                <div class="emoji-bar">
+                    <button class="emoji-btn" onclick="blastEmoji('❤️')">❤️</button>
+                    <button class="emoji-btn" onclick="blastEmoji('😂')">😂</button>
+                    <button class="emoji-btn" onclick="blastEmoji('😮')">😮</button>
+                    <button class="emoji-btn" onclick="blastEmoji('🔥')">🔥</button>
+                    <button class="emoji-btn" onclick="blastEmoji('👍')">👍</button>
+                </div>
+                <div id="chatBox" class="chat-messages"></div>
+                <div class="chat-input-area">
+                    <input type="text" id="chatIn" placeholder="พิมพ์ข้อความที่นี่..."
+                        onkeypress="if(event.key==='Enter') sendChat()">
+                    <button class="btn-send" onclick="sendChat()">ส่ง</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const roomId = params.get('id');
+        let vPlayer = document.getElementById('vPlayer');
+        let vSource = document.getElementById('vSource');
+        const sid = Math.random().toString(36).substring(7);
+
+        let username = localStorage.getItem('zm_username') || 'Guest';
+
+        let roomData = null;
+        let isInternalUpdate = false;
+
+        async function init() {
+            // Register PWA Service Worker
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js');
+            }
+
+            if (!roomId) { window.location.href = '/'; return; }
+
+            if (!localStorage.getItem('zm_username') || localStorage.getItem('zm_username') === 'Guest') {
+                showPopup('⚠️ ข้อมูลไม่ครบ', 'กรุณาระบุชื่อเล่นของคุณที่หน้าหลักก่อนครับ', 'warning', () => {
+                    window.location.href = '/';
+                });
+                return;
+            }
+
+            await fetchRoomData();
+            if (!roomData) {
+                await new Promise(r => setTimeout(r, 1000));
+                await fetchRoomData();
+            }
+
+            // แสดงส่วนควบคุมการล็อคและปิดห้องถ้าเป็นเจ้าของห้อง
+            if (roomData && roomData.creator === username) {
+                document.getElementById('lockControlArea').style.display = 'flex';
+                document.getElementById('lockToggle').checked = roomData.isLocked || false;
+                document.getElementById('lockStatus').textContent = roomData.isLocked ? "ล็อคห้องแล้ว เฉพาะคุณที่เข้าได้" : "ห้องเปิดให้ทุกคนเข้าได้";
+                document.getElementById('closeRoomBtn').style.display = 'flex';
+            }
+
+            setInterval(fetchRoomData, 2500);
+            setInterval(sendHeartbeat, 3000);
+            setInterval(() => {
+                if (roomData && roomData.creator === username) {
+                    pushUpdate();
+                }
+                if (roomData && vPlayer && vPlayer.currentTime > 0) {
+                    localStorage.setItem('zm_resume_' + roomData.movieTitle, vPlayer.currentTime);
+                }
+            }, 3000);
+
+            // 🔧 Event-driven sync: ส่งทันทีเมื่อหัวห้องกดเล่น/หยุด/กรอ
+            setupVideoSyncListeners();
+        }
+
+        async function fetchRoomData() {
+            try {
+                const resp = await fetch('/api/rooms');
+                const rooms = await resp.json();
+                const current = rooms[roomId];
+
+                if (!current) {
+                    window._notFoundCount = (window._notFoundCount || 0) + 1;
+                    if (window._notFoundCount >= 5) { window.location.href = '/'; }
+                    return;
+                }
+                window._notFoundCount = 0;
+
+                if (current.participants) {
+                    document.getElementById('uCount').textContent = Object.keys(current.participants).length;
+                }
+
+                if (current.isLocked && (current.creator || '').toLowerCase() !== (username || '').toLowerCase()) {
+                    showPopup('ห้องถูกล็อค', 'เจ้าของห้องได้ล็อคห้องนี้ไว้แล้ว', 'lock', () => { window.location.href = '/'; });
+                    return;
+                }
+
+                if (JSON.stringify(current) !== JSON.stringify(roomData)) { applySync(current); }
+            } catch (e) { }
+        }
+
+        async function shareRoom() {
+            const shareData = {
+                title: 'มาดูหนังกับฉัน!',
+                text: `มาเข้าห้อง ${roomData.roomName} ดูเรื่อง ${roomData.movieTitle || 'หนังสนุกๆ'} พร้อมกันเถอะ!`,
+                url: window.location.href
+            };
+
+            if (navigator.share) {
+                try {
+                    await navigator.share(shareData);
+                } catch (err) {
+                    copyLink();
+                }
+            } else {
+                copyLink();
+            }
+        }
+
+        function copyLink() {
+            navigator.clipboard.writeText(window.location.href);
+            showStatus('📋 คัดลอกลิงก์เรียบร้อย!');
+        }
+
+        function applySync(newData) {
+            if (isInternalUpdate) return;
+            const oldData = roomData;
+            roomData = newData;
+
+            document.getElementById('roomDisplay').textContent = roomData.roomName;
+            const lockStatusUI = document.getElementById('lockStatusUI');
+            if (roomData.isLocked) {
+                lockStatusUI.textContent = '🔒 ล็อคอยู่'; lockStatusUI.style.color = '#ef4444';
+            } else {
+                lockStatusUI.textContent = '🔓 เปิดอยู่'; lockStatusUI.style.color = '#28a745';
+            }
+            document.getElementById('movieDisplay').textContent = "👤 โดย: " + (roomData.creator || "นิรนาม");
+
+            if (!oldData || oldData.videoUrl !== roomData.videoUrl) {
+                const isEmbed = roomData.videoUrl.includes('embed') || roomData.videoUrl.includes('dedkub') || roomData.videoUrl.includes('de88');
+                if (isEmbed && !roomData.videoUrl.includes('.mp4')) {
+                    let finalUrl = roomData.videoUrl;
+                    if (finalUrl.startsWith('//')) finalUrl = 'https:' + finalUrl;
+                    document.getElementById('playerContent').innerHTML = `<iframe src="${finalUrl}" frameborder="0" allowfullscreen sandbox="allow-forms allow-scripts allow-same-origin allow-presentation" loading="lazy"></iframe>`;
+                } else {
+                    const content = document.getElementById('playerContent');
+                    if (content.querySelector('iframe')) {
+                        content.innerHTML = `<video id="vPlayer" controls playsinline webkit-playsinline style="width:100%; height:100%;"><source id="vSource" src="" type="video/mp4"></video>`;
+                        vPlayer = document.getElementById('vPlayer'); vSource = document.getElementById('vSource');
+                        setupVideoSyncListeners(); // 🔧 ต่อ listener ใหม่หลังสร้าง video ใหม่
+                    }
+                    if (roomData.videoUrl.includes('.m3u8')) {
+                        if (Hls.isSupported()) { const hls = new Hls(); hls.loadSource(roomData.videoUrl); hls.attachMedia(vPlayer); }
+                        else if (vPlayer.canPlayType('application/vnd.apple.mpegurl')) { vSource.src = roomData.videoUrl; vPlayer.load(); }
+                    } else { vSource.src = roomData.videoUrl; vPlayer.load(); }
+                }
+            }
+
+            if (vPlayer) {
+                // ปิด listener ก่อนเพื่อไม่ให้ applySync trigger pushUpdate ซ้ำ
+                window._isSyncing = true;
+                if (roomData.isPlaying && vPlayer.paused) { vPlayer.play().catch(() => { }); }
+                else if (!roomData.isPlaying && !vPlayer.paused) { vPlayer.pause(); }
+                if (Math.abs(vPlayer.currentTime - roomData.currentTime) > 1) {
+                    vPlayer.currentTime = roomData.currentTime;
+                    showStatus('🔄 ซิงค์เวลาเป๊ะ!');
+                }
+                setTimeout(() => { window._isSyncing = false; }, 300);
+            }
+
+            const chatBox = document.getElementById('chatBox');
+            if (roomData.chat) {
+                const chatHtml = roomData.chat.map(m => {
+                    const timeStr = new Date(m.ts).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+                    return `<div class="message"><div class="message-user">${m.user} <span class="message-time">${timeStr} น.</span></div><div>${m.text}</div></div>`;
+                }).join('');
+                if (chatBox.innerHTML !== chatHtml) {
+                    const isNewMessage = chatBox.innerHTML !== "" && roomData.chat.length > 0;
+                    chatBox.innerHTML = chatHtml;
+                    chatBox.scrollTop = chatBox.scrollHeight;
+
+                    // แจ้งเตือนเมื่อเต็มจอ
+                    if (isNewMessage && document.fullscreenElement) {
+                        const lastMsg = roomData.chat[roomData.chat.length - 1];
+                        if (lastMsg.user !== username) {
+                            showStatus(`💬 ${lastMsg.user}: ${lastMsg.text}`);
+                        }
+                    }
+                }
+            }
+
+            // Sync Emojis from others
+            if (roomData.emojis) {
+                if (!window.renderedEmojis) window.renderedEmojis = new Set();
+                roomData.emojis.forEach(e => {
+                    const key = `emoji_${e.ts}_${e.sid}`;
+                    if (!window.renderedEmojis.has(key)) {
+                        spawnEmoji(e.emoji);
+                        window.renderedEmojis.add(key);
+                        if (window.renderedEmojis.size > 200) { // Clean up
+                            const arr = Array.from(window.renderedEmojis);
+                            window.renderedEmojis = new Set(arr.slice(-100));
+                        }
+                    }
+                });
+            }
+        }
+
+        async function pushUpdate(immediate = false) {
+            if (!roomData || (!immediate && isInternalUpdate)) return;
+            isInternalUpdate = true;
+            const updated = { ...roomData, currentTime: vPlayer ? vPlayer.currentTime : roomData.currentTime, isPlaying: vPlayer ? !vPlayer.paused : roomData.isPlaying };
+            try { await fetch('/api/update_room', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) }); } catch (e) { }
+            setTimeout(() => { isInternalUpdate = false; }, 800);
+        }
+
+        function setupVideoSyncListeners() {
+            if (!vPlayer) return;
+            const isCreator = () => roomData && roomData.creator === username;
+
+            // เมื่อหัวห้องกดเล่น → ส่งทันที
+            vPlayer.addEventListener('play', () => {
+                if (window._isSyncing) return;
+                if (isCreator()) {
+                    pushUpdate(true);
+                } else {
+                    // คนอื่นกดเล่นเอง → revert ตาม state เซิร์ฟเวอร์
+                    if (roomData && !roomData.isPlaying) {
+                        window._isSyncing = true;
+                        vPlayer.pause();
+                        setTimeout(() => { window._isSyncing = false; }, 300);
+                        showStatus('⚠️ เฉพาะหัวห้องเท่านั้นที่ควบคุมได้');
+                    }
+                }
+            });
+
+            // เมื่อหัวห้องกดหยุด → ส่งทันที
+            vPlayer.addEventListener('pause', () => {
+                if (window._isSyncing) return;
+                if (isCreator()) {
+                    pushUpdate(true);
+                } else {
+                    // คนอื่นกดหยุดเอง → revert ตาม state เซิร์ฟเวอร์
+                    if (roomData && roomData.isPlaying) {
+                        window._isSyncing = true;
+                        vPlayer.play().catch(() => {});
+                        setTimeout(() => { window._isSyncing = false; }, 300);
+                        showStatus('⚠️ เฉพาะหัวห้องเท่านั้นที่ควบคุมได้');
+                    }
+                }
+            });
+
+            // เมื่อหัวห้องกรอเวลา → ส่งทันที
+            vPlayer.addEventListener('seeked', () => {
+                if (window._isSyncing) return;
+                if (isCreator()) {
+                    pushUpdate(true);
+                    showStatus('⏩ กรอเวลาแล้ว — กำลังซิงค์...');
+                } else {
+                    // คนอื่นกรอเอง → revert กลับไปเวลาเซิร์ฟเวอร์
+                    if (roomData && Math.abs(vPlayer.currentTime - roomData.currentTime) > 1) {
+                        window._isSyncing = true;
+                        vPlayer.currentTime = roomData.currentTime;
+                        setTimeout(() => { window._isSyncing = false; }, 300);
+                        showStatus('⚠️ เฉพาะหัวห้องเท่านั้นที่ควบคุมได้');
+                    }
+                }
+            });
+        }
+
+        function toggleMenu() { document.getElementById('roomMenu').classList.toggle('show'); }
+
+        function showParticipants() {
+            if (!roomData || !roomData.participants) return;
+            // ✅ แก้ไข: ใช้ Object.keys เพื่อดึง "ชื่อ" (Key) แทนการใช้ Object.values ซึ่งคือ Timestamp
+            const users = Object.keys(roomData.participants).map(name => {
+                const isCreator = roomData.creator === name;
+                return `<div style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 16px; margin-bottom: 8px;">
+                    <div style="width: 36px; height: 36px; background: ${isCreator ? 'linear-gradient(135deg, var(--primary), var(--secondary))' : 'rgba(255,255,255,0.1)'}; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1rem; box-shadow: ${isCreator ? '0 5px 15px rgba(99,102,241,0.3)' : 'none'};">
+                        ${isCreator ? '👑' : '👤'}
+                    </div>
+                    <div style="flex: 1; text-align: left;">
+                        <div style="font-weight: 700; font-size: 1rem; color: white;">${name} ${name === username ? '<span style="color: var(--primary); font-size: 0.8rem; font-weight: 400;">(คุณ)</span>' : ''}</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8;">${isCreator ? 'เจ้าของห้อง' : 'ผู้เข้าร่วม'}</div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <div style="width: 8px; height: 8px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 10px #22c55e;"></div>
+                        <span style="font-size: 0.7rem; color: #22c55e; font-weight: 600;">ออนไลน์</span>
+                    </div>
+                </div>`;
+            }).join('');
+
+            const content = `
+                <div style="max-height: 400px; overflow-y: auto; padding: 5px; margin-top: 10px;">
+                    ${users}
+                </div>
+            `;
+
+            showPopup('รายชื่อผู้ที่กำลังดูอยู่', content, 'info');
+        }
+
+        async function toggleLock() {
+            if (!roomData) return;
+            const isLocked = document.getElementById('lockToggle').checked;
+            roomData.isLocked = isLocked;
+            document.getElementById('lockStatus').textContent = isLocked ? "ล็อคห้องแล้ว เฉพาะคุณที่เข้าได้" : "ห้องเปิดให้ทุกคนเข้าได้";
+            await pushUpdate(true);
+        }
+
+        function sendChat() {
+            const input = document.getElementById('chatIn');
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = '';
+
+            const now = Date.now();
+            const timeStr = new Date(now).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+            // แสดงในเครื่องตัวเองทันที (Optimistic UI)
+            const chatBox = document.getElementById('chatBox');
+            chatBox.innerHTML += `<div class="message"><div class="message-user">${username} <span class="message-time">${timeStr} น.</span></div><div>${text}</div></div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // ส่งไปเซิร์ฟเวอร์แบบ Append
+            fetch('/api/update_room', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: roomId, newChat: { user: username, text: text, ts: now } })
+            });
+        }
+
+        function blastEmoji(emoji) {
+            spawnEmoji(emoji);
+            // ส่งให้อื่นเห็นด้วย
+            fetch('/api/update_room', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: roomId, newEmoji: { emoji: emoji, ts: Date.now(), sid: sid } })
+            });
+        }
+        function spawnEmoji(emoji) {
+            const el = document.createElement('div'); el.className = 'floating-emoji'; el.textContent = emoji;
+            el.style.left = Math.random() * 80 + 10 + '%'; document.getElementById('emojiArea').appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        async function sendHeartbeat() { try { await fetch('/api/update_room', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: roomId, heartbeat: username }) }); } catch (e) { } }
+
+        function handleExit() { window.location.href = '/'; }
+
+        async function closeRoom() {
+            toggleMenu();
+            showConfirm('ลบห้องถาวร', 'คุณแน่ใจหรือไม่ที่จะลบห้องนี้ทิ้งทันที? เพื่อนๆ ที่กำลังดูอยู่จะหลุดออกจากห้องทั้งหมดครับ', async () => {
+                try {
+                    const resp = await fetch('/api/delete_room', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: roomId, user: username })
+                    });
+                    const result = await resp.json();
+                    if (result.success) {
+                        showPopup('✅ ปิดห้องเรียบร้อย', 'ลบห้องออกจากระบบถาวรแล้วครับ', 'success', () => {
+                            window.location.href = '/';
+                        });
+                    } else {
+                        showPopup('❌ ผิดพลาด', result.message || 'ไม่สามารถลบห้องได้', 'error');
+                    }
+                } catch (e) {
+                    showPopup('❌ ผิดพลาด', 'เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์', 'error');
+                }
+            });
+        }
+
+        function showConfirm(title, text, onConfirm) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmText').textContent = text;
+            document.getElementById('confirmModal').classList.add('show');
+            const okBtn = document.getElementById('confirmOkBtn');
+            const cancelBtn = document.getElementById('confirmCancelBtn');
+            const newOkBtn = okBtn.cloneNode(true);
+            const newCancelBtn = cancelBtn.cloneNode(true);
+            okBtn.parentNode.replaceChild(newOkBtn, okBtn);
+            cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+            newOkBtn.onclick = () => { document.getElementById('confirmModal').classList.remove('show'); onConfirm(); };
+            newCancelBtn.onclick = () => { document.getElementById('confirmModal').classList.remove('show'); };
+        }
+
+        function showPopup(title, text, type = 'info', onOk = null) {
+            const icons = {
+                'success': '✅',
+                'error': '❌',
+                'warning': '⚠️',
+                'info': '👥',
+                'lock': '🔒'
+            };
+            document.getElementById('popupIcon').textContent = icons[type] || icons.info;
+            document.getElementById('popupTitle').textContent = title;
+            document.getElementById('popupText').innerHTML = text;
+            const btn = document.querySelector('#customPopup .btn-send');
+            btn.onclick = () => { closePopup(); if (onOk) onOk(); };
+            document.getElementById('customPopup').classList.add('show');
+        }
+
+        function closePopup() {
+            document.getElementById('customPopup').classList.remove('show');
+        }
+
+        function showStatus(text) {
+            const msg = document.getElementById('statusMsg');
+            document.getElementById('statusTxt').textContent = text;
+            msg.classList.add('show'); setTimeout(() => msg.classList.remove('show'), 3000);
+        }
+
+        function showAdblockPopup() {
+            toggleMenu();
+            const content = `
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+                    <a href="https://chromewebstore.google.com/detail/adblock-%E2%80%94-block-ads-acros/gighmmpiobklfepjocnamgkkbiglidom" target="_blank" 
+                       style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 16px; text-decoration: none; color: white; border: 1px solid rgba(255,255,255,0.1);">
+                       <div style="display: flex; align-items: center; gap: 12px;">
+                           <img src="https://cdn-icons-png.flaticon.com/128/5968/5968868.png" width="30">
+                           <div style="text-align: left;"><div style="font-weight: 700;">AdBlock</div><div style="font-size: 0.7rem; color: #94a3b8;">ยอดนิยมอันดับ 1</div></div>
+                       </div>
+                       <span style="font-size: 0.8rem; background: var(--primary); padding: 4px 10px; border-radius: 8px;">ติดตั้ง</span>
+                    </a>
+                    <a href="https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh" target="_blank" 
+                       style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 16px; text-decoration: none; color: white; border: 1px solid rgba(255,255,255,0.1);">
+                       <div style="display: flex; align-items: center; gap: 12px;">
+                           <img src="https://cdn-icons-png.flaticon.com/128/2583/2583109.png" width="30">
+                           <div style="text-align: left;"><div style="font-weight: 700;">uBlock Origin Lite</div><div style="font-size: 0.7rem; color: #94a3b8;">เบาและกันโฆษณาได้ดีมาก</div></div>
+                       </div>
+                       <span style="font-size: 0.8rem; background: var(--primary); padding: 4px 10px; border-radius: 8px;">ติดตั้ง</span>
+                    </a>
+                    <a href="https://chromewebstore.google.com/detail/ghostery-tracker-ad-block/mlomiejdfkolichcflejclcbmpeaniij" target="_blank" 
+                       style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 16px; text-decoration: none; color: white; border: 1px solid rgba(255,255,255,0.1);">
+                       <div style="display: flex; align-items: center; gap: 12px;">
+                           <img src="https://cdn-icons-png.flaticon.com/128/1042/1042337.png" width="30">
+                           <div style="text-align: left;"><div style="font-weight: 700;">Ghostery</div><div style="font-size: 0.7rem; color: #94a3b8;">บล็อก Tracker และโฆษณา</div></div>
+                       </div>
+                       <span style="font-size: 0.8rem; background: var(--primary); padding: 4px 10px; border-radius: 8px;">ติดตั้ง</span>
+                    </a>
+                </div>
+                <div style="margin-top: 20px; font-size: 0.8rem; color: #f87171;">💡 รบกวนติดตั้งแล้วรีเฟรชหน้าเว็บอีกครั้งครับ</div>
+            `;
+            showPopup('🛡️ เลือก AdBlocker ที่ต้องการ', content, 'info');
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
