@@ -34,24 +34,7 @@ class MoviesAPI {
                 fullUrl = this.newMovieUrl; // ใช้หน้าหนังใหม่เป็นหลัก
             }
 
-            // ลอง direct request ก่อน (อาจจะผ่าน)
-            try {
-                const directResponse = await fetch(fullUrl, {
-                    method: 'GET',
-                    mode: 'cors',
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-                    }
-                });
-
-                if (directResponse.ok) {
-                    const html = await directResponse.text();
-                    return html;
-                }
-            } catch (directError) {
-                // Ignore errors
-            }
+            // ไปที่ระบบ Proxy เลย (ข้าม Direct Fetch เพราะจะติด CORS ทันที)
 
             // ลอง proxy ต่างๆ
             for (let i = 0; i < proxies.length; i++) {
@@ -182,8 +165,9 @@ class MoviesAPI {
         return movies;
     }
 
-    // ดึง URL วิดีโอจากหน้าหนังโดยตรง
+    // ดึง URL วิดีโอ (รองรับหลายแหล่ง - Mirror Sources)
     async fetchDirectVideoUrl(moviePageUrl) {
+        const sources = [];
         try {
             // ปรับ Path ให้ถูกต้อง
             let relativePath = moviePageUrl;
@@ -202,54 +186,62 @@ class MoviesAPI {
             for (const v of videoTags) {
                 const src = v.src || v.getAttribute('src');
                 if (src && (src.includes('.mp4') || src.includes('.m3u8'))) {
-                    return src;
+                    if (!sources.includes(src)) sources.push(src);
                 }
             }
 
-            // 2. ถ้าไม่เจอ ลองหา iframe player
-            const iframe = doc.querySelector('iframe[src*="embed"], iframe[src*="player"], iframe[src*="dedkub"], iframe[src*="de88"], iframe[src*="api"]');
-            if (iframe) {
-                let embedUrl = iframe.src;
+            // 2. ถ้าไม่เจอ ลองหา iframe player ทั้งหมด
+            const iframes = doc.querySelectorAll('iframe');
+            for (const iframe of iframes) {
+                let embedUrl = iframe.src || iframe.getAttribute('src');
+                if (!embedUrl) continue;
                 if (embedUrl.startsWith('//')) embedUrl = 'https:' + embedUrl;
                 if (embedUrl.startsWith('/')) embedUrl = this.baseUrl.replace(/\/$/, '') + embedUrl;
 
-                // พยายาม Bypass เข้าไปดึงไฟล์ใน Embed
-                try {
-                    const embedHtml = await this.fetchFromDE88(embedUrl);
-                    if (embedHtml) {
-                        const videoStyles = [
-                            /["'](https?:\/\/[^"']+\.(mp4|m3u8)[^"']*)["']/i,
-                            /file\s*:\s*["'](https?:\/\/[^"']+)["']/i,
-                            /source\s*:\s*["'](https?:\/\/[^"']+)["']/i,
-                            /src\s*:\s*["'](https?:\/\/[^"']+)["']/i
-                        ];
+                if (embedUrl.includes('embed') || embedUrl.includes('player') || embedUrl.includes('dedkub') || embedUrl.includes('api')) {
+                    // ลองขุดเข้าไปใน Embed
+                    try {
+                        const embedHtml = await this.fetchFromDE88(embedUrl);
+                        if (embedHtml) {
+                            const videoStyles = [
+                                /["'](https?:\/\/[^"']+\.(mp4|m3u8)[^"']*)["']/i,
+                                /file\s*:\s*["'](https?:\/\/[^"']+)["']/i,
+                                /source\s*:\s*["'](https?:\/\/[^"']+)["']/i,
+                                /src\s*:\s*["'](https?:\/\/[^"']+)["']/i,
+                                /['"](https?:\/\/.*?playlist\.m3u8.*?)['"]/i,
+                                /atob\(["']([A-Za-z0-9+/=]+)["']\)/
+                            ];
 
-                        for (const regex of videoStyles) {
-                            const match = embedHtml.match(regex);
-                            if (match && match[1]) {
-                                let foundUrl = match[1];
-                                if (foundUrl.includes('.mp4') || foundUrl.includes('.m3u8') || foundUrl.includes('googleusercontent')) {
-                                    return foundUrl;
+                            let foundInEmbed = false;
+                            for (const regex of videoStyles) {
+                                const match = embedHtml.match(regex);
+                                if (match && match[1]) {
+                                    let foundUrl = match[1];
+                                    
+                                    // Handle atob case
+                                    if (regex.toString().includes('atob')) {
+                                        try { foundUrl = atob(foundUrl); } catch(e) { }
+                                    }
+
+                                    if (foundUrl.includes('http') && (foundUrl.includes('.mp4') || foundUrl.includes('.m3u8') || foundUrl.includes('googleusercontent'))) {
+                                        if (!sources.includes(foundUrl)) {
+                                            sources.push(foundUrl);
+                                            foundInEmbed = true;
+                                        }
+                                    }
                                 }
                             }
+                            
+                            // ถ้าหาแบบลึกไม่เจอเลย ค่อยยอมใช้ iframe (ซึ่งซิงค์เวลาไม่ได้)
+                            if (!foundInEmbed && !sources.includes(embedUrl)) sources.push(embedUrl);
                         }
-
-                        // ค้นหาใน Base64
-                        const base64Match = embedHtml.match(/atob\(["']([A-Za-z0-9+/=]+)["']\)/);
-                        if (base64Match) {
-                            try {
-                                const decoded = atob(base64Match[1]);
-                                if (decoded.includes('http')) return decoded;
-                            } catch (e) { }
-                        }
+                    } catch (err) {
+                        if (!sources.includes(embedUrl)) sources.push(embedUrl);
                     }
-                } catch (err) {
                 }
-
-                return embedUrl;
             }
 
-            return null;
+            return sources.length > 0 ? sources : null;
         } catch (e) {
             return null;
         }

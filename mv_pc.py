@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🎬 Sync Movie Watch - ดูหนังซิงค์กันแบบเรียลไทม์
+🎬 ดูหนังออนไลน์ฟรี - คนทำเว็บ ZXD44
 รวมทุกอย่างในไฟล์เดียว - เซิร์ฟเวอร์, เว็บไซต์, และ tunnel
+ไฟล์: mv_pc.py
 """
 
 import os
@@ -52,9 +53,9 @@ class CustomHandler(SimpleHTTPRequestHandler):
             
             sanitized_rooms = {}
             with ROOMS_LOCK:
-                # ลบห้องที่ไม่มีความเคลื่อนไวนานกว่า 1 นาที (60 วิ)
+                # ลบห้องที่ไม่มีความเคลื่อนไหวนานกว่า 30 วินาที
                 now = time.time()
-                expired_ids = [rid for rid, rdata in ROOMS.items() if now - rdata.get('lastActive', 0) > 60]
+                expired_ids = [rid for rid, rdata in ROOMS.items() if now - rdata.get('lastActive', 0) > 30]
                 for rid in expired_ids:
                     print(f"{Colors.RED}[DEBUG] 🗑️ ลบห้องอัตโนมัติ (หมดเวลา): {rid} ({ROOMS[rid].get('roomName')}){Colors.ENDC}")
                     del ROOMS[rid]
@@ -114,22 +115,35 @@ class CustomHandler(SimpleHTTPRequestHandler):
                             if 'text/html' in content_type:
                                 try:
                                     html_text = content.decode('utf-8', errors='ignore')
-                                    # ลบสคริปต์โฆษณาที่พบบ่อย
+                                    # ลบสคริปต์โฆษณาที่พบบ่อย (Enhanced)
                                     ad_patterns = [
                                         r'<script[^>]*src="[^"]*ad[^"]*"[^>]*>.*?</script>',
                                         r'<script[^>]*src="[^"]*pop[^"]*"[^>]*>.*?</script>',
                                         r'<script[^>]*src="[^"]*analytics[^"]*"[^>]*>.*?</script>',
+                                        r'<script[^>]*src="[^"]*click[^"]*"[^>]*>.*?</script>',
+                                        r'<script[^>]*src="[^"]*tracking[^"]*"[^>]*>.*?</script>',
+                                        r'<script[^>]*src="[^"]*doubleclick[^"]*"[^>]*>.*?</script>',
+                                        r'<script[^>]*src="[^"]*google-analytics[^"]*"[^>]*>.*?</script>',
+                                        r'<script[^>]*src="[^"]*googletagmanager[^"]*"[^>]*>.*?</script>',
                                         r'<ins[^>]*class="adsbygoogle"[^>]*>.*?</ins>',
                                         r'<iframe[^>]*src="[^"]*ad[^"]*"[^>]*>.*?</iframe>',
                                         r'<div[^>]*class="[^"]*ad[^"]*"[^>]*>.*?</div>',
+                                        r'<div[^>]*id="[^"]*ad[^"]*"[^>]*>.*?</div>',
                                         r'window\.open\(', # บล็อก popup บางส่วน
                                         r'eval\s*\(\s*atob', # ป้องกันสคริปต์หลบหลีก
+                                        r'location\.href\s*=\s*[\'"][^#][^\'"]+[\'"]', # บล็อกการ redirect นอกเหนือจาก anchor
                                     ]
                                     for pattern in ad_patterns:
                                         html_text = re.sub(pattern, '', html_text, flags=re.IGNORECASE | re.DOTALL)
                                     
-                                    # บล็อกการ Redirect ไปหน้าอื่น
-                                    html_text = html_text.replace('window.location', '//blocked')
+                                    # บล็อกการ Redirect ไปหน้าอื่นผ่าน Javascript
+                                    html_text = html_text.replace('window.location', '//blocked_location')
+                                    html_text = html_text.replace('top.location', '//blocked_top')
+                                    html_text = html_text.replace('self.location', '//blocked_self')
+                                    
+                                    # ลบพวก Overlay ที่บังหน้าจอ
+                                    html_text = html_text.replace('display:block', 'display:block !important') # รักษาการแสดงผลหลัก
+                                    html_text = re.sub(r'z-index\s*:\s*\d{5,}', 'z-index: -1', html_text) # กด z-index สูงๆ ลงไปข้างหลัง
                                     
                                     content = html_text.encode('utf-8')
                                 except:
@@ -246,6 +260,8 @@ class CustomHandler(SimpleHTTPRequestHandler):
                         # Clean up old participants (> 10s)
                         now = time.time()
                         room['participants'] = {u:t for u,t in room['participants'].items() if now - t < 10}
+                        
+                        room['lastActive'] = time.time()
                         
                         # Only return success for heartbeat to avoid heavy processing
                         if len(data) == 2: # id + heartbeat only
@@ -506,10 +522,10 @@ class SyncMovieServer:
             url_ready = False
             for attempt in range(30):
                 try:
-                    resp = requests.get(public_url, timeout=3)
-                    if resp.status_code == 200:
-                        url_ready = True
-                        break
+                    with urllib.request.urlopen(public_url, timeout=3) as resp:
+                        if resp.status == 200:
+                            url_ready = True
+                            break
                 except:
                     pass
                 print(".", end="", flush=True)
@@ -621,7 +637,7 @@ class SyncMovieServer:
 def show_menu():
     """แสดงเมนูหลัก"""
     print(f"\n{Colors.YELLOW}============================================================{Colors.ENDC}")
-    print(f"{Colors.YELLOW}🎬 Sync Movie Watch - เลือกระบบที่ต้องการ:{Colors.ENDC}")
+    print(f"{Colors.YELLOW}🎬 ดูหนังออนไลน์ฟรี - คนทำเว็บ ZXD44:{Colors.ENDC}")
     print(f"{Colors.CYAN}1. 🚀 เริ่มเซิร์ฟเวอร์ + Cloudflare (เสถียรสุด แนะนำ){Colors.ENDC}")
     print(f"{Colors.BLUE}2. 🏠 เริ่มเซิร์ฟเวอร์ท้องถิ่น (ดูเฉพาะในเครื่อง/WiFi เดียวกัน){Colors.ENDC}")
     print(f"{Colors.YELLOW}3. 📖 วิธีใช้งาน (คำแนะนำ){Colors.ENDC}")
@@ -639,34 +655,49 @@ def show_usage():
     print(f"{Colors.YELLOW}5. เลือกหนังที่ต้องการ สร้างห้อง และส่งลิงก์ให้เพื่อน!{Colors.ENDC}")
     
     print(f"\n{Colors.BLUE}🎥 คุณสมบัติหลัก:{Colors.ENDC}")
-    print(f"• {Colors.GREEN}Real-time Sync:{Colors.ENDC} ดูหนังพร้อมกัน ซิงค์เวลาเป๊ะ")
+    print(f"• {Colors.GREEN}Real-time Sync:{Colors.ENDC} ดูหนังพร้อมกัน")
     print(f"• {Colors.GREEN}Ad-Block Engine:{Colors.ENDC} บล็อกโฆษณาจากแหล่งที่มาอัตโนมัติ")
     print(f"• {Colors.GREEN}Interactive Chat:{Colors.ENDC} แชทและส่งอีโมจิเรียลไทม์")
     
     print(f"\n{Colors.BLUE}💡 เคล็ดลับ:{Colors.ENDC}")
     print(f"• {Colors.GREEN}แนะนำ Cloudflare (ข้อ 1):{Colors.ENDC} เพราะเสถียรกว่าและไม่ต้องสมัครสมาชิกใดๆ")
-    print(f"• {Colors.GREEN}สำหรับมือถือ:{Colors.ENDC} ใช้สคริปต์ movie_sync_android.py ในแอป Termux")
+    print(f"• {Colors.GREEN}สำหรับมือถือ:{Colors.ENDC} ใช้สคริปต์ mv_apk.py ในแอป Termux")
 
 def auto_install_adblockers():
-    """เปิดหน้าดาวน์โหลด Extensions อัตโนมัติ"""
+    """เมนูเลือกติดตั้ง AdBlocker"""
     extensions = [
-        {"name": "AdBlock", "url": "https://chromewebstore.google.com/detail/adblock-%E2%80%94-block-ads-acros/gighmmpiobklfepjocnamgkkbiglidom"},
-        {"name": "Ghostery", "url": "https://chromewebstore.google.com/detail/ghostery-tracker-ad-block/mlomiejdfkolichcflejclcbmpeaniij"},
-        {"name": "uBlock Origin Lite", "url": "https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh"}
+        {"name": "AdBlock (ยอดนิยม/บล็อกเรียบ)", "url": "https://chromewebstore.google.com/detail/adblock-%E2%80%94-block-ads-acros/gighmmpiobklfepjocnamgkkbiglidom"},
+        {"name": "uBlock Origin Lite (เบาแรง/ประหยัดสเปกเครื่อง)", "url": "https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh"},
+        {"name": "Ghostery (ความเป็นส่วนตัวสูง/บล็อกสคริปต์แฝง)", "url": "https://chromewebstore.google.com/detail/ghostery-privacy-adblocke/mlomiejdfkolichcflejclcbmpeaniij"}
     ]
     
-    print(f"\n{Colors.BLUE}🛡️  กำลังเตรียมการติดตั้ง AdBlocker สำหรับเบราว์เซอร์ของคุณ...{Colors.ENDC}")
-    print(f"{Colors.YELLOW}💡 ระบบจะเปิดหน้า Chrome Web Store ของโปรแกรมทั้ง 3 ตัว{Colors.ENDC}")
-    print(f"{Colors.YELLOW}💡 กรุณากดปุ่ม 'Add to Chrome' (เพิ่มลงใน Chrome) ในแต่ละหน้าที่เปิดขึ้นมา{Colors.ENDC}")
-    
-    for i, ext in enumerate(extensions):
-        print(f"🚀 [ {i+1}/{len(extensions)} ] กำลังเปิด {ext['name']}...")
-        webbrowser.open(ext['url'])
-        time.sleep(1)
+    while True:
+        print(f"\n{Colors.YELLOW}============================================================{Colors.ENDC}")
+        print(f"{Colors.BLUE}🛡️  เมนูติดตั้ง AdBlocker (เพื่อกำจัดโฆษณาในเว็บหนัง):{Colors.ENDC}")
+        for i, ext in enumerate(extensions):
+            print(f"{Colors.CYAN}{i+1}. ติดตั้ง {ext['name']}{Colors.ENDC}")
+        print(f"{Colors.GREEN}4. 🚀 ติดตั้งทั้งหมด (แนะนำที่สุด - รอบเดียวจบ!){Colors.ENDC}")
+        print(f"{Colors.RED}0. 🔙 กลับสู่เมนูหลัก{Colors.ENDC}")
+        print(f"{Colors.YELLOW}============================================================{Colors.ENDC}")
+        print(f"{Colors.BOLD}📱 สำหรับมือถือ:{Colors.ENDC} แนะนำ брауเซอร์ {Colors.GREEN}Brave{Colors.ENDC} หรือ {Colors.GREEN}Kiwi{Colors.ENDC} แทนครับ")
         
-    print(f"\n{Colors.GREEN}✅ เปิดหน้าติดตั้งเรียบร้อยแล้ว!{Colors.ENDC}")
-    print(f"{Colors.BOLD}📱 สำหรับมือถือ: {Colors.ENDC}แนะนำให้ใช้เบราว์เซอร์ {Colors.GREEN}Brave{Colors.ENDC} หรือ {Colors.GREEN}Kiwi Browser{Colors.ENDC} เพื่อบล็อกโฆษณาได้ทันทีครับ")
-    input(f"\nกด Enter เพื่อกลับสู่เมนูหลัก...")
+        choice = input(f"\n{Colors.BOLD}กรุณาเลือก (0-4): {Colors.ENDC}").strip()
+        
+        if choice == '0':
+            break
+        elif choice in ['1', '2', '3']:
+            ext = extensions[int(choice)-1]
+            print(f"🚀 กำลังเปิดหน้าติดตั้ง {ext['name']}...")
+            webbrowser.open(ext['url'])
+        elif choice == '4':
+            print(f"{Colors.GREEN}🚀 กำลังเปิดทุกตัวเพื่อการบล็อกขั้นสุด...{Colors.ENDC}")
+            for ext in extensions:
+                webbrowser.open(ext['url'])
+                time.sleep(0.5)
+            print(f"{Colors.GREEN}✅ เปิดหน้าติดตั้งครบทุกตัวแล้ว! กด 'เพิ่มใน Chrome' ได้เลย{Colors.ENDC}")
+            break
+        else:
+            print(f"{Colors.RED}❌ กรุณาเลือก 0-4{Colors.ENDC}")
 
 def main():
     """ฟังก์ชันหลัก"""
@@ -683,6 +714,41 @@ def main():
         os._exit(0)
     
     signal.signal(signal.SIGINT, signal_handler)
+    
+    # 🔄 เริ่มระบบ Auto-Restart (เหมือน nodemon - เฝ้าดูทั้งไฟล์ Python และหน้าเว็บ)
+    def auto_reloader():
+        def get_project_mtime():
+            max_m = 0
+            for root, dirs, files in os.walk('.'):
+                if any(p in root for p in ['.git', 'exe', '__pycache__', '.gemini']): continue
+                for f in files:
+                    if f.endswith(('.py', '.html', '.js', '.css')):
+                        try:
+                            m = os.path.getmtime(os.path.join(root, f))
+                            if m > max_m: max_m = m
+                        except: pass
+            return max_m
+
+        initial_mtime = get_project_mtime()
+        while True:
+            time.sleep(1.2) # ตรวจสอบทุก 1.2 วินาที
+            try:
+                current_mtime = get_project_mtime()
+                if current_mtime > initial_mtime:
+                    print(f"\n{Colors.YELLOW}🔄 [Auto-Restart] พบการเปลี่ยนแปลงในโปรเจกต์! กำลังเริ่มระบบใหม่...{Colors.ENDC}")
+                    # หยุดซิงค์เมฆก่อนรีสตาร์ท
+                    try: 
+                        if server: server.stop_server()
+                    except: pass
+                    time.sleep(0.3)
+                    # ใช้ Popen + exit แทน execv เพื่อความเสถียรบน Windows
+                    subprocess.Popen([sys.executable] + sys.argv, creationflags=subprocess.CREATE_NEW_CONSOLE if sys.stdin.isatty() else 0)
+                    os._exit(0)
+            except:
+                pass
+    
+    # รัน Reloader ใน Background
+    threading.Thread(target=auto_reloader, daemon=True).start()
     
     while True:
         try:

@@ -104,21 +104,31 @@ class CustomHandler(SimpleHTTPRequestHandler):
                     
                     if 'text/html' in c_type:
                         html = content.decode('utf-8', errors='ignore')
-                        # Advanced Ad-Filter Patterns
+                        # Advanced Ad-Filter Patterns (Enhanced)
                         ad_patterns = [
                             r'<script[^>]*src="[^"]*ad[^"]*"[^>]*>.*?</script>',
                             r'<script[^>]*src="[^"]*pop[^"]*"[^>]*>.*?</script>',
                             r'<script[^>]*src="[^"]*analytics[^"]*"[^>]*>.*?</script>',
+                            r'<script[^>]*src="[^"]*click[^"]*"[^>]*>.*?</script>',
+                            r'<script[^>]*src="[^"]*tracking[^"]*"[^>]*>.*?</script>',
+                            r'<script[^>]*src="[^"]*google-analytics[^"]*"[^>]*>.*?</script>',
                             r'<ins[^>]*class="adsbygoogle"[^>]*>.*?</ins>',
                             r'<iframe[^>]*src="[^"]*ad[^"]*"[^>]*>.*?</iframe>',
+                            r'<div[^>]*class="[^"]*ad[^"]*"[^>]*>.*?</div>',
                             r'window\.open\(', 
-                            r'eval\s*\(\s*atob'
+                            r'eval\s*\(\s*atob',
+                            r'location\.href\s*=\s*[\'"][^#][^\'"]+[\'"]'
                         ]
                         for pattern in ad_patterns:
                             html = re.sub(pattern, '', html, flags=re.I|re.S)
                         
-                        # บล็อกการ Redirect ไปหน้าอื่น
-                        html = html.replace('window.location', '//blocked')
+                        # บล็อกการ Redirect ไปหน้าอื่นผ่าน Javascript
+                        html = html.replace('window.location', '//blocked_location')
+                        html = html.replace('top.location', '//blocked_top')
+                        html = html.replace('self.location', '//blocked_self')
+                        
+                        # ลบพวก Overlay ที่บังหน้าจอ
+                        html = re.sub(r'z-index\s*:\s*\d{5,}', 'z-index: -1', html)
                         content = html.encode('utf-8')
                         
                     PROXY_CACHE[target_url] = (now, content, c_type)
@@ -165,6 +175,7 @@ class CustomHandler(SimpleHTTPRequestHandler):
                     user = data['heartbeat']
                     room['participants'][user] = time.time()
                     room['participants'] = {u:t for u,t in room['participants'].items() if time.time() - t < 10}
+                    room['lastActive'] = time.time()
                 
                 # Handle Chat
                 if 'newChat' in data:
@@ -241,7 +252,7 @@ class AndroidMovieServer:
             ("pkg install cloudflared git zsh curl python nodejs -y", "ติดตั้งโปรแกรมจำเป็น"),
             ("termux-setup-storage", "ขอสิทธิ์เข้าถึงไฟล์ (กรุณากด Allow บนหน้าจอ)"),
             ("termux-wake-lock", "เปิดระบบกันระบบหลับ (Wake Lock)"),
-            ("pip install requests colorama", "ติดตั้ง Python Library เสริม")
+            ("pip install colorama", "ติดตั้ง Python Library เสริม")
         ]
         for cmd, desc in cmds:
             print(f"📦 {Colors.BLUE}{desc}...{Colors.ENDC}")
@@ -278,7 +289,7 @@ class AndroidMovieServer:
         zshrc = os.path.expanduser("~/.zshrc")
         bashrc = os.path.expanduser("~/.bashrc")
         current_dir = os.getcwd()
-        alias_cmd = f"\nalias movie='cd {current_dir} && python movie_sync_android.py'\n"
+        alias_cmd = f"\nalias movie='cd {current_dir} && python mv_apk.py'\n"
         
         for rc in [zshrc, bashrc]:
             if os.path.exists(rc):
@@ -364,10 +375,10 @@ class AndroidMovieServer:
             url_ready = False
             for attempt in range(30):
                 try:
-                    resp = requests.get(public_url, timeout=3)
-                    if resp.status_code == 200:
-                        url_ready = True
-                        break
+                    with urllib.request.urlopen(public_url, timeout=3) as resp:
+                        if resp.status == 200:
+                            url_ready = True
+                            break
                 except:
                     pass
                 print(".", end="", flush=True)

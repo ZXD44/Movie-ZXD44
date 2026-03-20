@@ -12,8 +12,8 @@
 
 ## 📂 PHASE 1: โครงสร้างไฟล์ (File Structure)
 โปรเจคถูกออกแบบให้มีความเป็น **Portable & Lightweight** สูงสุด:
-1.  `movie_sync.py`: **หัวใจหลัก (Backend)** - จัดการ Web Server, Proxy, API Room Management และ Cloudflare Tunnel
-2.  `movie_sync_android.py`: **เวอร์ชัน Android** - สคริปต์สำหรับรันบน Termux พร้อม Wake Lock กันระบบหลับ
+1.  `mv_pc.py`: **หัวใจหลัก (Backend)** - จัดการ Web Server, Proxy, API Room Management และ Cloudflare Tunnel
+2.  `mv_apk.py`: **เวอร์ชัน Android** - สคริปต์สำหรับรันบน Termux พร้อม Wake Lock กันระบบหลับ
 3.  `public/index.html`: **หน้าแรก (Lobby)** - ค้นหาหนัง, เลือกหมวดหมู่, และดูรายการห้องที่เปิดอยู่
 4.  `public/room.html`: **ห้องรับชม (Cinema)** - เล่นวิดีโอ, ซิงค์เวลา, แชท, และระบบอีโมจิลอย
 5.  `public/movies-api.js`: **ตัวกลางข้อมูล (Data Proxy)** - สกัดข้อมูลจากเว็บไซต์ต้นทาง และดึงไฟล์วิดีโอจริง
@@ -68,7 +68,8 @@
 
 - **Append Logic**: ใช้ส่ง `newChat` และ `newEmoji` เพื่อให้ข้อมูลถูกต่อท้าย ไม่ใช่การเขียนทับ
 - **Expiry**: ห้องจะหายไปหากไม่มีกิจกรรมภายใน 60 วินาที เพื่อประหยัดทรัพยากร
-- **Room Limit**: 1 ผู้ใช้สร้างได้ไม่เกิน 2 ห้อง (movie_sync.py)
+- **Room Limit**: 1 ผู้ใช้สร้างได้ไม่เกิน 2 ห้อง (mv_pc.py)
+- **สำหรับมือถือ**: ใช้สคริปต์ `mv_apk.py` ในแอป Termux
 
 ### 2. ระบบการเล่นวิดีโอ (Video Engine)
 - **HLS Support**: รองรับไฟล์ `.m3u8` ผ่านไลบรารี `hls.js`
@@ -81,7 +82,7 @@
 
 ### 4. ระบบเมนู (Menu Flow)
 
-**PC (`movie_sync.py`)**:
+**PC (`mv_pc.py`)**:
 ```
 0 → ออกจากโปรแกรม
 1 → start_server_with_cloudflare() → check_html_files → check_cloudflare → install_cloudflare(ถ้าจำเป็น) → Popen cloudflared → รอ URL → เปิด browser → serve_forever
@@ -90,7 +91,7 @@
 4 → auto_install_adblockers() → เปิด Chrome Web Store 3 extensions
 ```
 
-**Android (`movie_sync_android.py`)**:
+**Android (`mv_apk.py`)**:
 ```
 0 → ออกจากโปรแกรม
 1 → start_cloudflare() → apply_wake_lock → check cloudflared → Popen cloudflared → รอ URL → serve_forever

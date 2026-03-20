@@ -8,18 +8,20 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#6366f1">
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3658/3658937.png">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;800&family=Outfit:wght@400;600;800&display=swap"
+        rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#6366f1',
-                        secondary: '#a855f7',
-                        accent: '#22c55e',
-                        bg: '#0f172a',
-                        cardBg: 'rgba(30, 41, 59, 1)',
+                        primary: '#f59e0b',
+                        secondary: '#ea580c',
+                        accent: '#facc15',
+                        bg: '#020617',
+                        cardBg: 'rgba(15, 23, 42, 1)',
                     },
                     fontFamily: {
                         sans: ['Outfit', 'sans-serif'],
@@ -28,856 +30,205 @@
             }
         }
     </script>
-    <style type="text/tailwindcss">
-        @layer utilities {
-            .glass {
-                background: rgba(255, 255, 255, 0.03);
-            }
+    <link rel="stylesheet" href="/index.css">
+    <style>
+        .creation-box {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            width: 100%;
+            max-width: 500px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.98));
+            backdrop-filter: blur(25px);
+            padding: 2rem 1.5rem 1.5rem;
+            border-radius: 36px 36px 0 0;
+            border-top: 2px solid var(--primary);
+            border-left: 1px solid rgba(255, 255, 255, 0.05);
+            border-right: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 -25px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(245, 158, 11, 0.05);
+            z-index: 1000;
+            display: none;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        @layer components {
-            .movie-card {
-                position: relative;
-                display: flex;
-                flex-direction: column;
-                background-color: rgba(15, 23, 42, 0.6);
-                border-radius: 24px;
-                overflow: hidden;
-                cursor: pointer;
-                transition: all 0.3s;
-                border: 1px solid rgba(255, 255, 255, 0.05);
-            }
-            .movie-card:hover { 
-                transform: translateY(-8px);
-                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.5);
-            }
-            .movie-card.selected { 
-                border: 3px solid theme('colors.primary');
-                box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
-            }
-            .poster-box {
-                position: relative;
-                width: 100%;
-                aspect-ratio: 2/3;
-                overflow: hidden;
-            }
-            .poster-box img {
-                width: 100%;
-                height: 100%;
-                object-fit: cover;
-                opacity: 0;
-                transition: opacity 0.5s;
-                background-color: theme('colors.slate.800');
-            }
-            .poster-box img.loaded {
-                opacity: 1;
-            }
-            .movie-info { 
-                position: absolute;
-                bottom: 0;
-                left: 0;
-                width: 100%;
-                padding: 1rem;
-                padding-top: 4rem;
-                background: linear-gradient(to top, theme('colors.slate.900'), transparent);
-                display: flex;
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-            .m-title {
-                color: white;
-                font-weight: 800;
-                font-size: 0.95rem;
-                line-height: 1.3;
-                text-shadow: 0 1px 2px rgba(0,0,0,0.5);
-                display: -webkit-box;
-                -webkit-line-clamp: 2;
-                line-clamp: 2;
-                -webkit-box-orient: vertical;
-                overflow: hidden;
-            }
-            .m-meta {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                font-size: 0.7rem;
-                color: theme('colors.slate.300');
-                font-weight: 600;
-            }
-            .m-quality {
-                background-color: rgba(99, 102, 241, 0.2);
-                color: theme('colors.indigo.300');
-                padding: 0.125rem 0.5rem;
-                border-radius: 0.375rem;
-                border: 1px solid rgba(99, 102, 241, 0.2);
-            }
-            
-            .room-card {
-                background: linear-gradient(to bottom right, rgba(30, 41, 59, 0.8), theme('colors.slate.900'));
-                border: 1px solid rgba(255, 255, 255, 0.05);
-                border-radius: 20px;
-                padding: 1.25rem;
-                cursor: pointer;
-                transition: all 0.3s;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-                position: relative;
-                overflow: hidden;
-            }
-            .room-card:hover {
-                transform: translateY(-4px);
-                box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4);
-                border-color: rgba(255, 255, 255, 0.1);
-            }
-            .room-card::before {
-                content: '';
-                position: absolute;
-                top: 0;
-                left: 0;
-                width: 4px;
-                height: 100%;
-                background: linear-gradient(to bottom, theme('colors.primary'), theme('colors.secondary'));
-            }
-
-            .creation-box {
-                position: fixed;
-                bottom: 0;
-                left: 50%;
-                width: 100%;
-                max-width: 500px;
-                background-color: rgba(15, 23, 42, 0.95);
-                backdrop-filter: blur(20px);
-                padding: 1.5rem;
-                border-radius: 32px 32px 0 0;
-                border-top: 1px solid rgba(255, 255, 255, 0.1);
-                border-left: 1px solid rgba(255, 255, 255, 0.1);
-                border-right: 1px solid rgba(255, 255, 255, 0.1);
-                box-shadow: 0 -20px 50px rgba(0, 0, 0, 0.5);
-                z-index: 1000;
-                display: none;
-                transform: translateX(-50%);
-            }
-            .close-btn {
-                position: absolute;
-                top: 1rem;
-                right: 1rem;
-                width: 2rem;
-                height: 2rem;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 9999px;
-                background-color: theme('colors.slate.800');
-                color: theme('colors.slate.400');
-                cursor: pointer;
-                transition: all 0.3s;
-                border: 1px solid rgba(255, 255, 255, 0.05);
-            }
-            .close-btn:hover {
-                background-color: theme('colors.slate.700');
-                color: white;
-            }
-
-            .skeleton {
-                background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
-                background-size: 200% 100%;
-                animation: loading 1.5s infinite;
-            }
-            @keyframes loading {
-                0% { background-position: 200% 0; }
-                100% { background-position: -200% 0; }
-            }
-            .movie-info { background: linear-gradient(to top, #1e293b, transparent); }
-            
-            #statusMsg {
-                transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-            }
-            #statusMsg.show {
-                transform: translateX(-50%) translateY(0);
-                opacity: 1;
-            }
-            
-            .creation-box.show {
-                display: block; opacity: 1; transform: translate(-50%, 0);
-                animation: premiumSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-            }
-            @keyframes premiumSlideUp {
-                0% { transform: translate(-50%, 50px); opacity: 0; }
-                100% { transform: translate(-50%, 0); opacity: 1; }
-            }
-            
-            #customPopup {
-                animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            }
-            #customPopup.show {
-                display: flex !important;
-            }
-            #customPopup .modal-content {
-                transform: scale(0.9) translateY(20px);
-                transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            }
-            #customPopup.show .modal-content {
-                transform: scale(1) translateY(0);
-            }
-            @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-            @keyframes bounceIn { from { transform: scale(0); } to { transform: scale(1); } }
-            .modal-icon { animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .creation-box.show {
+            display: block;
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        
-        body { background-color: theme('colors.bg'); color: #f8fafc; overflow-x: hidden; }
-        * { -webkit-tap-highlight-color: transparent; }
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(100%); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
     </style>
 </head>
 
 <body>
-    <div id="statusMsg" class="fixed top-[25px] left-1/2 -translate-x-1/2 -translate-y-[100px] bg-gradient-to-br from-indigo-500/95 to-purple-500/95 text-white py-3 px-7 rounded-full text-sm font-bold z-[2000] flex items-center gap-3 shadow-[0_15px_35px_rgba(99,102,241,0.4)] backdrop-blur-md border border-white/20 pointer-events-none opacity-0"><span>✨</span> <span id="statusTxt"></span></div>
-    <!-- Custom Popup -->
-    <div id="customPopup" class="fixed inset-0 bg-slate-900/40 backdrop-blur-md hidden justify-center items-center z-[2000] modal-overlay">
-        <div class="bg-gradient-to-br from-slate-800/90 to-slate-900/95 border border-white/10 p-10 rounded-[32px] max-w-[420px] w-[90%] text-center shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_50px_-12px_rgba(0,0,0,0.5),0_0_40px_rgba(99,102,241,0.1)] relative overflow-hidden modal-content">
+    <div id="statusMsg"
+        class="fixed top-[25px] left-1/2 -translate-x-1/2 -translate-y-[100px] bg-gradient-to-br from-indigo-500/95 to-purple-500/95 text-white py-3 px-7 rounded-full text-sm font-bold z-[2000] flex items-center gap-3 shadow-[0_15px_35px_rgba(99,102,241,0.4)] backdrop-blur-md border border-white/20 pointer-events-none opacity-0">
+        <span>✨</span> <span id="statusTxt"></span>
+    </div>
+
+    <div id="customPopup"
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-md hidden justify-center items-center z-[2000] modal-overlay">
+        <div
+            class="bg-gradient-to-br from-slate-800/90 to-slate-900/95 border border-white/10 p-10 rounded-[32px] max-w-[420px] w-[90%] text-center shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_50px_-12px_rgba(0,0,0,0.5),0_0_40px_rgba(99,102,241,0.1)] relative overflow-hidden modal-content">
             <div class="absolute top-0 left-0 w-full h-[4px] bg-gradient-to-r from-primary to-secondary"></div>
-            <div class="text-[3.5rem] mb-6 inline-block drop-shadow-[0_0_15px_rgba(99,102,241,0.3)] modal-icon" id="popupIcon">🔔</div>
+            <div class="text-[3.5rem] mb-6 inline-block drop-shadow-[0_0_15px_rgba(99,102,241,0.3)] modal-icon"
+                id="popupIcon">🔔</div>
             <div class="text-[1.75rem] font-extrabold mb-3 text-white tracking-tight" id="popupTitle">แจ้งเตือน</div>
             <div class="text-slate-400 mb-10 leading-relaxed text-[1.05rem]" id="popupText">ข้อความแจ้งเตือน</div>
-            <button class="w-full bg-gradient-to-br from-primary to-secondary text-white p-4 rounded-xl text-base font-extrabold cursor-pointer transition-all hover:-translate-y-[2px] hover:shadow-[0_10px_25px_rgba(99,102,241,0.4)] hover:brightness-110 active:translate-y-0" onclick="closePopup()">รับทราบ ✨</button>
+            <button
+                class="w-full bg-gradient-to-br from-primary to-secondary text-white p-4 rounded-xl text-base font-extrabold cursor-pointer transition-all hover:-translate-y-[2px] hover:shadow-[0_10px_25px_rgba(99,102,241,0.4)] hover:brightness-110 active:translate-y-0"
+                onclick="closePopup()">รับทราบ ✨</button>
         </div>
     </div>
 
-    <!-- Ambient Background Glow -->
-    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/20 rounded-full blur-[120px] pointer-events-none z-[-1]"></div>
-    <div class="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/20 rounded-full blur-[120px] pointer-events-none z-[-1]"></div>
+    <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none">
+        <div
+            class="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-primary/10 rounded-full blur-[140px] animate-pulse">
+        </div>
+        <div class="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-yellow-500/5 rounded-full blur-[140px] animate-pulse"
+            style="animation-delay: 2s;"></div>
+    </div>
 
     <div class="max-w-[1100px] mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <header class="text-center mb-10">
-            <h1 class="text-5xl sm:text-6xl font-extrabold mb-3 bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 text-transparent bg-clip-text tracking-tight drop-shadow-sm">🎬 Sync Movie</h1>
-            <p class="text-slate-400 text-lg sm:text-xl font-medium">ดูหนังพร้อมกัน ซิงค์เวลาเป๊ะ</p>
+        <!-- 🎭 UI Header -->
+        <header class="text-center mb-16 relative">
+            <div class="inline-block relative">
+                <h1 class="text-6xl sm:text-8xl font-black mb-4 tracking-tighter text-white bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-slate-500 drop-shadow-[0_10px_30px_rgba(255,255,255,0.1)]"
+                    style="font-family: 'Kanit', sans-serif;">
+                    ดูหนังออนไลน์ฟรี
+                </h1>
+                <div class="absolute -top-4 -right-8 w-12 h-12 bg-primary/20 rounded-full blur-xl animate-bounce"></div>
+            </div>
+            <div class="mt-2 text-center">
+                <div
+                    class="inline-flex items-center gap-2 bg-white/5 backdrop-blur-md border border-white/10 px-6 py-2 rounded-full shadow-2xl">
+                    <span class="w-2 h-2 bg-primary rounded-full animate-ping"></span>
+                    <span class="text-[0.7rem] sm:text-[0.8rem] font-bold tracking-[0.2em] text-slate-300 uppercase">
+                        BY <span class="text-white">ZXD44</span> • FREEMOVIE
+                    </span>
+                </div>
+            </div>
         </header>
 
         <div class="max-w-[600px] mx-auto flex flex-col gap-5 mb-14">
-            <!-- User Setup Card -->
-            <div class="bg-slate-800/40 backdrop-blur-xl p-6 rounded-[28px] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden group">
-                <div class="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-primary to-secondary transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left"></div>
+            <div
+                class="bg-slate-800/40 backdrop-blur-xl p-6 rounded-[28px] border border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.12)] relative overflow-hidden group">
+                <div
+                    class="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-primary to-secondary transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left">
+                </div>
                 <div class="flex items-center gap-5 relative z-10">
-                    <div class="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[20px] flex items-center justify-center text-2xl shadow-lg border border-white/10">👤</div>
+                    <div
+                        class="w-14 h-14 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[20px] flex items-center justify-center text-2xl shadow-lg border border-white/10">
+                        👤</div>
                     <div class="flex-1 flex flex-col gap-1.5">
-                        <label for="userName" class="text-[0.7rem] text-slate-400 font-bold uppercase tracking-widest ml-1">ผู้ใช้งานปัจจุบัน</label>
-                        <input type="text" id="userName" placeholder="ตั้งชื่อเล่นของคุณที่นี่..." class="bg-slate-900/50 border border-white/5 px-4 py-3 rounded-xl text-white outline-none w-full text-base font-medium transition-all focus:bg-slate-900/80 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 placeholder:text-slate-600" oninput="localStorage.setItem('zm_username', this.value.trim())">
+                        <label for="userName"
+                            class="text-[0.7rem] text-slate-400 font-bold uppercase tracking-widest ml-1">ผู้ใช้งานปัจจุบัน</label>
+                        <input type="text" id="userName" placeholder="ตั้งชื่อเล่นของคุณที่นี่..."
+                            class="bg-slate-900/50 border border-white/5 px-4 py-3 rounded-xl text-white outline-none w-full text-base font-medium transition-all focus:bg-slate-900/80 focus:border-primary placeholder:text-slate-600"
+                            oninput="localStorage.setItem('zm_username', this.value.trim())">
                     </div>
                 </div>
             </div>
 
-            <!-- AdBlock Banner -->
-            <div class="bg-gradient-to-r from-slate-800/60 to-slate-800/40 backdrop-blur-md rounded-[24px] border border-dashed border-indigo-500/30 p-5 flex sm:flex-row flex-col items-center justify-between gap-4 transition-all hover:bg-slate-800/80">
-                <div class="flex items-center gap-4 text-left w-full sm:w-auto">
-                    <div class="w-12 h-12 bg-slate-900/80 rounded-full flex items-center justify-center text-xl border border-white/5 flex-shrink-0">🛡️</div>
+            <div
+                class="relative bg-gradient-to-br from-indigo-900/20 to-slate-900/40 backdrop-blur-xl rounded-[32px] border border-indigo-500/20 p-6 flex sm:flex-row flex-col items-center justify-between gap-6 transition-all group overflow-hidden">
+                <div
+                    class="absolute -top-10 -right-10 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl group-hover:bg-indigo-500/20 transition-all">
+                </div>
+
+                <div class="flex items-center gap-5 text-left w-full sm:w-auto relative z-10">
+                    <div
+                        class="w-14 h-14 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl flex items-center justify-center text-2xl border border-white/5 flex-shrink-0 shadow-inner">
+                        🛡️</div>
                     <div>
-                        <div class="text-white font-bold text-sm sm:text-base">แนะนำให้ติดตั้ง AdBlocker</div>
-                        <div class="text-slate-400 text-xs sm:text-sm mt-0.5">ปิดโฆษณาเว็บหนังเพื่อความลื่นไหลสูงสุด</div>
+                        <div class="text-white font-extrabold text-base sm:text-lg tracking-tight">แนะนำให้ติดตั้ง
+                            AdBlocker</div>
+                        <div class="text-slate-400 text-xs sm:text-sm leading-relaxed">
+                            เพื่อกำจัดป๊อปอัพโฆษณาที่แทรกจากเว็บวิดีโอต้นทาง</div>
                     </div>
                 </div>
-                <button class="w-full sm:w-auto bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 px-5 py-2.5 rounded-xl text-sm font-bold cursor-pointer hover:bg-indigo-500 hover:text-white transition-all whitespace-nowrap" onclick="setupAdblock()">ติดตั้งอัตโนมัติ 🚀</button>
+
+                <button
+                    class="relative z-10 w-full sm:w-auto bg-indigo-500 text-white px-7 py-3 rounded-2xl text-sm font-extrabold cursor-pointer hover:scale-105 hover:shadow-[0_10px_20px_rgba(99,102,241,0.3)] active:scale-95 transition-all whitespace-nowrap overflow-hidden"
+                    onclick="showAdblockPopup()">
+                    ติดตั้งอย่างไร? 🚀
+                </button>
             </div>
         </div>
 
-        <button onclick="showMobileTips()" class="bg-orange-500/10 text-orange-400 border border-orange-500/30 px-6 py-2.5 rounded-full font-bold mx-auto mb-10 flex items-center justify-center gap-2 hover:bg-orange-500 hover:text-white transition-all shadow-[0_0_15px_rgba(249,115,22,0.15)] hover:shadow-[0_0_20px_rgba(249,115,22,0.4)]">
-            💡 เคล็ดลับการใช้บนมือถือ
-        </button>
-
-        <!-- 🏠 ACTIVE ROOMS SECTION -->
         <div class="rooms-section mb-12">
             <div class="flex items-center justify-between mb-4">
                 <h2 class="text-2xl font-extrabold flex items-center gap-3">
                     <span class="text-2xl">🏠</span> ห้องที่เปิดอยู่
                 </h2>
-                <button onclick="loadRooms()" class="flex items-center gap-2 bg-slate-800 border border-white/10 text-slate-300 font-bold px-4 py-2 rounded-xl text-sm hover:bg-slate-700 hover:text-white hover:border-white/20 transition-all active:scale-95">
+                <button onclick="loadRooms()"
+                    class="flex items-center gap-2 bg-slate-800 border border-white/10 text-slate-300 font-bold px-4 py-2 rounded-xl text-sm hover:bg-slate-700 hover:text-white transition-all">
                     <span class="text-primary">🔄</span> รีเฟรช
                 </button>
             </div>
-            <div id="activeRooms" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-4">
-                <!-- Room cards -->
-            </div>
+            <div id="activeRooms" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-4"></div>
         </div>
 
         <div class="flex flex-col sm:flex-row gap-4 mb-8 glass p-4 rounded-3xl border border-white/5">
-            <input type="text" id="movieSearch" class="flex-1 min-w-[200px] bg-slate-800 border border-white/10 px-4 py-3 rounded-xl text-white outline-none transition-all focus:border-primary focus:shadow-[0_0_0_4px_rgba(99,102,241,0.2)]" placeholder="🔍 ค้นหาหนัง (พิมพ์แล้วรอสักครู่)..."
-                oninput="debounceSearch()">
-            <select id="genreFilter" class="flex-1 min-w-[200px] bg-slate-800 border border-white/10 px-4 py-3 rounded-xl text-white outline-none transition-all focus:border-primary focus:shadow-[0_0_0_4px_rgba(99,102,241,0.2)]" onchange="filterLocal()">
+            <input type="text" id="movieSearch"
+                class="flex-1 min-w-[200px] bg-slate-800 border border-white/10 px-4 py-3 rounded-xl text-white outline-none focus:border-primary"
+                placeholder="🔍 ค้นหาหนัง..." oninput="debounceSearch()">
+            <select id="genreFilter"
+                class="flex-1 min-w-[200px] bg-slate-800 border border-white/10 px-4 py-3 rounded-xl text-white outline-none focus:border-primary"
+                onchange="filterLocal()">
                 <option value="">🎭 ทุกหมวดหมู่</option>
-                <option value="doonung/action-movie">💥 Action (บู๊/ระทึกขวัญ)</option>
-                <option value="doonung/horror-ghost-movie">👻 Horror (ผี/สยองขวัญ)</option>
-                <option value="doonung/comedy-movie">😂 Comedy (ตลก/ฮา)</option>
-                <option value="doonung/animation">🎬 Animation (การ์ตูน)</option>
+                <option value="doonung/action-movie">💥 Action</option>
+                <option value="doonung/horror-ghost-movie">👻 Horror</option>
+                <option value="doonung/comedy-movie">😂 Comedy</option>
+                <option value="doonung/animation">🎬 Animation</option>
             </select>
         </div>
-        <div
-            style="margin-bottom: 1rem; font-size: 0.85rem; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; padding: 0 10px;">
-            <span id="movieCount">กำลังโหลดรายการหนัง...</span>
-            <span style="font-size: 0.75rem; opacity: 0.6;">*คลิกที่รูปเพื่อเลือกหนังและสร้างห้อง</span>
+
+        <div class="mb-4 flex justify-between text-slate-400 text-sm px-2">
+            <span id="movieCount">กำลังโหลด...</span>
+            <span class="opacity-60">*คลิกที่รูปเพื่อเลือกหนัง</span>
         </div>
 
-        <div id="movieGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-6 mb-8">
-            <!-- Movie cards -->
-        </div>
-        <div id="loadMore" class="text-center p-8 text-slate-400">โหลดหนังเพิ่มเติมอัตโนมัติเมื่อเลื่อนลงสุด ✨</div>
+        <div id="movieGrid"
+            class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 sm:gap-10 mb-12 items-start"></div>
+        <div id="loadMore" class="text-center p-8 text-slate-400">เลื่อนลงเพื่อโหลดต่อ ✨</div>
 
         <div id="selectedMovieArea" class="creation-box">
-            <button class="close-btn z-50 hover:scale-110 active:scale-90" onclick="document.getElementById('selectedMovieArea').classList.remove('show')">
-                <svg width="16" height="16" viewBox="0 0 14 14" fill="none" class="opacity-80 transition-opacity group-hover:opacity-100">
-                    <path d="M1 1L13 13M1 13L13 1" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </button>
-            <div class="flex gap-6 items-start mb-6">
-                <!-- Poster Focus -->
-                <div class="relative shrink-0 group">
-                    <div class="absolute -inset-1 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl blur opacity-30 group-hover:opacity-60 transition duration-500"></div>
-                    <img id="selPoster" src="" class="relative w-[90px] h-[135px] rounded-2xl object-cover shadow-[0_10px_25px_rgba(0,0,0,0.5)] border border-white/10 z-10 transition-transform duration-300 group-hover:scale-105">
-                    <div class="absolute -bottom-2 -right-2 bg-gradient-to-br from-pink-500 to-rose-500 w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 border-slate-900 shadow-lg z-20 hover:scale-110 transition-transform cursor-default">❤️</div>
+            <button class="close-btn"
+                onclick="document.getElementById('selectedMovieArea').classList.remove('show')">✕</button>
+            <div class="flex gap-6 items-start mb-8 pb-4 border-b border-white/5">
+                <div class="relative group">
+                    <img id="selPoster" src=""
+                        class="w-[100px] h-[150px] rounded-2xl object-cover shadow-2xl border border-white/10 group-hover:scale-105 transition-transform duration-300">
+                    <div class="absolute -bottom-2 -right-2 bg-primary text-black text-[0.6rem] font-black px-2 py-0.5 rounded-md shadow-lg">PREMIUM</div>
                 </div>
-                <!-- Info Section -->
-                <div class="text-left flex-1 pt-1">
-                    <div class="text-[0.65rem] text-indigo-400 font-extrabold uppercase mb-1 tracking-widest drop-shadow-sm flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse"></span> MOVIE SELECTION</div>
-                    <h3 id="selTitle" class="text-xl font-extrabold mb-3 leading-tight text-white line-clamp-2 drop-shadow-md">ชื่อหนัง</h3>
-                    <div class="user-input-wrapper">
-                        <label for="rName" class="text-[0.65rem] text-slate-500 font-extrabold uppercase mb-1 block">ชื่อห้องรับชม</label>
-                        <input type="text" id="rName" placeholder="เช่น 'ห้องของ (ชื่อคุณ)'" class="w-full bg-slate-900/60 border border-white/10 px-4 py-2.5 rounded-xl text-white font-semibold text-sm outline-none transition-all focus:bg-slate-900/80 focus:border-primary focus:ring-2 focus:ring-primary/20 placeholder:text-slate-600">
+                <div class="text-left flex-1 min-w-0">
+                    <div class="text-[0.7rem] text-primary font-black uppercase tracking-[0.2em] mb-2 leading-none flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 bg-primary rounded-full"></span> MOVIE SELECTED
+                    </div>
+                    <h3 id="selTitle" class="text-2xl font-black mb-4 line-clamp-2 text-white leading-tight" style="font-family: 'Kanit', sans-serif;">ชื่อหนัง</h3>
+                    <div class="user-input-wrapper space-y-2">
+                        <label for="rName"
+                            class="text-[0.65rem] text-slate-400 font-bold uppercase tracking-widest ml-1">ตั้งชื่อห้องรับชม 🎬</label>
+                        <input type="text" id="rName" placeholder="เช่น 'ห้องนั่งเล่นสุดเท่...'"
+                            class="w-full bg-slate-900/80 border border-white/10 px-5 py-3 rounded-2xl text-white font-bold text-sm outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all">
                     </div>
                 </div>
             </div>
-            <button id="createRoomBtn" onclick="createRoom()" class="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white font-extrabold text-lg py-4 rounded-2xl shadow-[0_10px_20px_rgba(168,85,247,0.3)] hover:shadow-[0_15px_30px_rgba(168,85,247,0.5)] transition-all duration-300 hover:-translate-y-1 active:translate-y-0 active:scale-95 tracking-wide">
-                เริ่มสร้างห้องและรับชม 🚀
+            <button id="createRoomBtn" onclick="createRoom()"
+                class="w-full bg-gradient-to-r from-primary via-secondary to-accent text-black font-black text-lg py-5 rounded-2xl shadow-[0_15px_35px_rgba(245,158,11,0.25)] hover:-translate-y-1.5 active:translate-y-0 transition-all flex items-center justify-center gap-3">
+                <span class="text-2xl">🔥</span> เริ่มสร้างห้องและรับชมเลย
             </button>
         </div>
     </div>
 
     <script src="/movies-api.js"></script>
-    <script>
-        // Extend the MoviesAPI class to include the new detectGenre method
-        // This is a workaround as the original movies-api.js file is not provided for direct modification.
-        // In a real scenario, this method would be added directly to the MoviesAPI class definition in movies-api.js.
-        if (typeof MoviesAPI !== 'undefined') {
-            MoviesAPI.prototype.detectGenre = function (title, element = null) {
-                const titleLower = title.toLowerCase();
-
-                // ถ้าเป็นการ Search เว็บอาจจะไม่มี Element เราจะเช็คจาก Title เป็นหลัก
-                const classLower = (element && element.className) ? element.className.toLowerCase() : '';
-
-                // 1. เช็คจาก Class ของ WordPress (ถ้ามี)
-                if (classLower.includes('category-action') || classLower.includes('category-thriller') || classLower.includes('category-adventure')) return 'Action';
-                if (classLower.includes('category-horror') || classLower.includes('category-ghost')) return 'Horror';
-                if (classLower.includes('category-comedy')) return 'Comedy';
-                if (classLower.includes('category-animation') || classLower.includes('category-anime') || classLower.includes('category-cartoon')) return 'Animation';
-
-                // 2. เช็คจากคีย์เวิร์ดในชื่อ (แม่นยำสูงขึ้นเมื่อเป็นการ Search เจาะจง)
-                if (titleLower.includes('action') || titleLower.includes('บู๊') || titleLower.includes('ต่อสู้') || titleLower.includes('thriller') || titleLower.includes('ระทึก') || titleLower.includes('adventure') || titleLower.includes('ผจญภัย')) return 'Action';
-                if (titleLower.includes('horror') || titleLower.includes('ผี') || titleLower.includes('สยอง') || titleLower.includes('น่ากลัว')) return 'Horror';
-                if (titleLower.includes('comedy') || titleLower.includes('ตลก') || titleLower.includes('ฮา')) return 'Comedy';
-                if (titleLower.includes('animation') || titleLower.includes('การ์ตูน') || titleLower.includes('anime') || titleLower.includes('อนิเมะ')) return 'Animation';
-
-                return 'Drama';
-            };
-        }
-
-        const moviesAPI = new MoviesAPI();
-        let allMovies = [];
-        let selectedMovie = null;
-        let currentPage = 1;
-        let isFetching = false;
-        let searchTimeout = null;
-        let searchResults = [];
-
-        async function init() {
-            // Register PWA Service Worker
-            if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').then(() => {
-                    console.log('Service Worker Registered');
-                });
-            }
-
-            const savedName = localStorage.getItem('zm_username');
-            if (savedName) document.getElementById('userName').value = savedName;
-
-            showSkeletons();
-
-            try {
-                allMovies = await moviesAPI.getMoviesFromPage(1);
-                displayMovies();
-                loadRooms();
-                setInterval(loadRooms, 5000);
-                setInterval(updateRoomUI, 1000);
-            } catch (e) {
-                document.getElementById('movieGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem;">❌ ไม่สามารถโหลดข้อมูลได้ หรือ CORS ติดขัด กรุณารีเฟรชหน้าเว็บ</div>';
-            }
-
-            window.onscroll = () => {
-                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 500) {
-                    if (!isFetching) {
-                        loadMore();
-                    }
-                }
-            };
-        }
-
-        function showSkeletons() {
-            const grid = document.getElementById('movieGrid');
-            grid.innerHTML = Array(12).fill(0).map(() => `
-                <div class="movie-card skeleton" style="height: 350px;"></div>
-            `).join('');
-        }
-
-        async function loadMore() {
-            isFetching = true;
-            currentPage++;
-
-            const genreValue = document.getElementById('genreFilter').value; // URL Path
-            const genreText = document.getElementById('genreFilter').selectedOptions[0].innerText.split(' ')[1]; // e.g. "Action"
-            const query = document.getElementById('movieSearch').value.trim();
-            const activeSearch = genreValue || query;
-
-            document.getElementById('loadMore').textContent = `⏳ กำลังโหลด${activeSearch ? 'ผลการหา' : ''}หน้า ${currentPage}...`;
-
-            try {
-                let newMovies = [];
-                if (genreValue) {
-                    // โหมดหมวดหมู่: ใช้ getMoviesByCategory
-                    newMovies = await moviesAPI.getMoviesByCategory(genreValue, currentPage);
-                } else if (query) {
-                    // โหมดค้นหา: ใช้ searchMovies
-                    newMovies = await moviesAPI.searchMovies(query, currentPage);
-                } else {
-                    // โหมดปกติ: หน้าหนังใหม่
-                    newMovies = await moviesAPI.getMoviesFromPage(currentPage);
-                }
-
-                if (newMovies.length > 0) {
-                    // กรองหนังซ้ำออกจากรายการที่จะเอามาเติม
-                    // ถ้าอยู่ในโหมด Search/Category ให้เทียบกับ searchResults
-                    // ถ้าอยู่หน้าแรก ให้เทียบกับ allMovies
-                    const currentList = activeSearch ? searchResults : allMovies;
-                    const uniqueNew = newMovies.filter(nm => !currentList.some(existing => existing.id === nm.id));
-
-                    if (uniqueNew.length > 0) {
-                        if (activeSearch) {
-                            searchResults = [...searchResults, ...uniqueNew];
-                        } else {
-                            allMovies = [...allMovies, ...uniqueNew];
-                        }
-                        displayMovies(activeSearch ? searchResults : null);
-                        document.getElementById('loadMore').textContent = 'เลื่อนลงเพื่อโหลดต่อ';
-                    } else {
-                        // ถ้าโหลดมาแล้วซ้ำหมด (อาจจะเพราะเว็บหน้า 2 มีหนังซ้ำกับหน้า 1)
-                        document.getElementById('loadMore').textContent = '— ไม่พบข้อมูลใหม่เพิ่ม —';
-                    }
-
-                    displayMovies(activeSearch ? searchResults : null);
-                    document.getElementById('loadMore').textContent = 'เลื่อนลงเพื่อโหลดต่อ';
-                } else {
-                    document.getElementById('loadMore').textContent = '— สิ้นสุดรายการ —';
-                }
-            } catch (err) {
-                console.error("LoadMore Error:", err);
-                document.getElementById('loadMore').textContent = '⚠️ ลองใหม่อีกครั้ง';
-            }
-            isFetching = false;
-        }
-
-        let lastRenderKey = ""; // ใช้ป้องกันการรีเรนเดอร์ซ้ำซ้อนเพื่อประหยัดสเปคและเน็ต
-        function displayMovies(moviesToDisplay = null) {
-            const grid = document.getElementById('movieGrid');
-            const countEl = document.getElementById('movieCount');
-            const genre = document.getElementById('genreFilter').value;
-            const query = document.getElementById('movieSearch').value.trim();
-
-            // ใช้รายการที่ส่งมา หรือใช้รายการทั้งหมดเป็นหลัก
-            let list = moviesToDisplay || (query ? searchResults : allMovies);
-
-            // กรองตามหมวดหมู่ถ้ามีการเลือก
-            if (genre && !moviesToDisplay) { // moviesToDisplay จะถูกใช้เมื่อมีการค้นหา deep search
-                list = list.filter(m => m.genre === genre);
-            }
-
-            // [Optimization] สร้าง Key เพื่อเช็คว่าข้อมูลเปลี่ยนไปจากเดิมไหม
-            const currentKey = list.map(m => m.id).join(',');
-            // ถ้าข้อมูลเดิมและไม่ใช่การสั่งบังคับ (เช่น search results ใหม่) ไม่ต้อง Render ใหม่
-            if (currentKey === lastRenderKey && !moviesToDisplay) return;
-            lastRenderKey = currentKey;
-
-            countEl.textContent = `พบหนังทั้งหมด ${list.length} เรื่อง`;
-
-            if (list.length === 0) {
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem; color: #64748b;">ไม่พบหนังในหมวดหมู่นี้</div>';
-                return;
-            }
-
-            // Render พร้อม Lazy Loading และ Fade-in ประหยัดเน็ต
-            grid.innerHTML = list.map(m => `
-                <div class="movie-card" onclick="selectMovie('${m.id}', this)">
-                    <div class="poster-box">
-                        <img src="${m.poster}" 
-                             loading="lazy" 
-                             onload="this.classList.add('loaded')"
-                             onerror="this.src='https://via.placeholder.com/200x300/1e293b/94a3b8?text=No+Image'; this.classList.add('loaded')">
-                    </div>
-                    <div class="movie-info">
-                        <div class="m-title" title="${m.title}">${m.title}</div>
-                        <div class="m-meta">
-                            <span>📅 ${m.year}</span>
-                            <span class="m-quality">${m.quality}</span>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function debounceSearch() {
-            clearTimeout(searchTimeout);
-            const query = document.getElementById('movieSearch').value.trim();
-            if (!query) {
-                displayMovies();
-                document.getElementById('loadMore').style.display = 'block';
-                return;
-            }
-
-            document.getElementById('loadMore').style.display = 'none';
-            searchTimeout = setTimeout(async () => {
-                const grid = document.getElementById('movieGrid');
-                grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 2rem;">🔍 กำลังค้นหาเจาะจง: "' + query + '"...</div>';
-                searchResults = await moviesAPI.searchMovies(query);
-                displayMovies(searchResults);
-            }, 800);
-        }
-
-        async function filterLocal() {
-            const genreValue = document.getElementById('genreFilter').value; // URL Path: doonung/action-movie
-            const genreText = document.getElementById('genreFilter').options[document.getElementById('genreFilter').selectedIndex].text.split(' ')[1]; // Label: Action
-            const query = document.getElementById('movieSearch').value.trim();
-            const grid = document.getElementById('movieGrid');
-            const countEl = document.getElementById('movieCount');
-
-            if (!genreValue) {
-                displayMovies();
-                document.getElementById('loadMore').style.display = query ? 'none' : 'block';
-                return;
-            }
-
-            // 1. ดึงหนังจากหน้าแรกที่มีอยู่แล้วมาแสดงก่อน (Instant Local List)
-            // เราต้องใช้ detectGenre หรือเช็คจากชื่อหมวดหมู่ที่ map ไว้
-            // เนื่องจาก genreValue เป็น URL เราต้องใช้ genreText (Action, Horror, etc) ในการกรอง local
-            const localMatches = allMovies.filter(m => {
-                // ตรวจสอบทั้ง Genre ที่ระบุในระบบ และ keywords ใน title
-                return m.genre.includes(genreText) || m.originalTitle.toLowerCase().includes(genreText.toLowerCase());
-            });
-
-            searchResults = [...localMatches];
-
-            currentPage = 1;
-            document.getElementById('loadMore').style.display = 'none';
-
-            if (searchResults.length > 0) {
-                displayMovies(searchResults);
-                countEl.textContent = `พบ ${searchResults.length} เรื่องในหน้านี้... กำลังโหลดจากหมวด ${genreText} เพิ่ม ⏳`;
-            } else {
-                countEl.textContent = `กำลังโหลดหนังหมวด ${genreText}... ⏳`;
-                grid.innerHTML = Array(8).fill(0).map(() => `<div class="movie-card skeleton" style="height: 350px;"></div>`).join('');
-            }
-
-            try {
-                // 2. ทำ "Catgeory Search" โดยตรงจาก URL
-                const results = await moviesAPI.getMoviesByCategory(genreValue, 1);
-
-                // 3. รวมหนัง
-                const uniqueRemote = results.filter(r =>
-                    !searchResults.some(existing => existing.id === r.id)
-                );
-
-                // เอาหนังจาก Server ขึ้นก่อนถ้าไม่มีหนัง Local (หรือต่อท้ายถ้ามี) 
-                // แต่ User ขอให้ "เอาหนังใน new หนังใหม่ ขึ้นมาก่อนทุกครั้ง" 
-                // ปกติหนัง Local คือหนังใหม่สุดจากหน้าแรก ดังนั้นเอา Local ขึ้นก่อนถูกต้องแล้ว
-                searchResults = [...searchResults, ...uniqueRemote];
-                displayMovies(searchResults);
-
-                countEl.textContent = `พบหนังแนว ${genreText} ทั้งหมด ${searchResults.length} เรื่อง`;
-                document.getElementById('loadMore').style.display = 'block';
-
-            } catch (e) {
-                countEl.textContent = `❌ เกิดข้อผิดพลาดในการโหลดหมวดหมู่`;
-                displayMovies(searchResults);
-            }
-        }
-
-        function selectMovie(id, el) {
-            document.querySelectorAll('.movie-card').forEach(c => c.classList.remove('selected'));
-            el.classList.add('selected');
-
-            // หาจากทั้งรายการหลักและผลการค้นหา
-            selectedMovie = allMovies.find(m => m.id === id) || searchResults.find(m => m.id === id);
-
-            if (!selectedMovie) {
-                console.error("Movie not found:", id);
-                return;
-            }
-
-            document.getElementById('selPoster').src = selectedMovie.poster || '';
-            document.getElementById('selTitle').textContent = selectedMovie.title;
-            document.getElementById('rName').value = `ห้องดู ${selectedMovie.title}`;
-            document.getElementById('selectedMovieArea').classList.add('show');
-        }
-
-        async function createRoom() {
-            const btn = document.getElementById('createRoomBtn');
-            const nameInput = document.getElementById('userName');
-            const nick = nameInput.value.trim();
-
-            if (!nick || nick === 'Guest') {
-                showPopup(' กรุณาระบุชื่อก่อน', 'กรุณาใส่ชื่อของคุณในช่องด้านบนก่อนสร้างห้องครับ');
-                nameInput.focus();
-                return;
-            }
-            localStorage.setItem('zm_username', nick);
-
-            btn.disabled = true;
-            btn.textContent = '⏳ กำลังสร้างห้อง...';
-
-            try {
-                console.log('Fetching video URL from:', selectedMovie.moviePageUrl);
-                const videoUrl = await moviesAPI.fetchDirectVideoUrl(selectedMovie.moviePageUrl);
-
-                console.log('Video URL received:', videoUrl);
-
-                if (!videoUrl) {
-                    throw new Error('ไม่พบ URL วิดีโอ');
-                }
-
-                const roomId = 'room_' + Math.random().toString(36).substring(2, 10);
-                console.log('Creating room with ID:', roomId);
-
-                const roomData = {
-                    id: roomId,
-                    roomName: document.getElementById('rName').value || `Room ${selectedMovie.title}`,
-                    movieTitle: selectedMovie.title,
-                    moviePoster: selectedMovie.poster,
-                    moviePageUrl: selectedMovie.moviePageUrl,
-                    genre: moviesAPI.detectGenre(selectedMovie.title),
-                    videoUrl: videoUrl,
-                    isPlaying: false,
-                    currentTime: 0,
-                    creator: nick,
-                    createdAt: new Date().toISOString(),
-                    lastActive: Date.now() / 1000
-                };
-
-                const response = await fetch('/api/update_room', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(roomData)
-                });
-
-                const result = await response.json();
-                if (response.ok && result.success) {
-                    console.log('Room created successfully');
-                    window.location.href = `/room.html?id=${roomId}`;
-                } else {
-                    throw new Error(result.message || 'Failed to create room');
-                }
-            } catch (e) {
-                console.error('Error creating room:', e);
-                showPopup('เกิดข้อผิดพลาด', e.message);
-                btn.disabled = false;
-                btn.textContent = 'เริ่มสร้างห้องเลย! 🚀';
-            }
-        }
-
-        let localRooms = [];
-
-        async function loadRooms() {
-            try {
-                const resp = await fetch('/api/rooms');
-                const rooms = await resp.json();
-                // ✅ แก้ไข: ดึง ID จาก Key ของ Object และใส่เข้าไปใน Data ให้แม่นยำ
-                localRooms = Object.entries(rooms).map(([id, data]) => {
-                    return { ...data, id: id };
-                });
-                console.log('Active rooms loaded:', localRooms.length);
-                updateRoomUI();
-            } catch (e) {
-                console.error('Error loading rooms:', e);
-            }
-        }
-
-        function updateRoomUI() {
-            const grid = document.getElementById('activeRooms');
-            const now = Date.now() / 1000;
-            const EXPIRY = 60; // ปรับเหลือ 1 นาที (60 วิ) ตามคำขอ
-
-            // กรองห้องที่ยังไม่ตาย
-            const activeRooms = localRooms.filter(r => {
-                const timeLeft = EXPIRY - (now - (r.lastActive || 0));
-                return timeLeft > 0;
-            });
-
-            if (activeRooms.length === 0) {
-                grid.innerHTML = '<div style="padding: 1rem; color: #94a3b8; font-size: 0.9rem;">ยังไม่มีห้องที่กำลังดูอยู่</div>';
-                return;
-            }
-
-            // เรียงลำดับห้อง (ใหม่สุดขึ้นก่อน)
-            activeRooms.sort((a, b) => (b.lastActive || 0) - (a.lastActive || 0));
-
-            grid.innerHTML = activeRooms.map(r => {
-                const timeLeft = Math.max(0, Math.ceil(EXPIRY - (now - (r.lastActive || 0))));
-                const colorClass = timeLeft <= 10 ? '#ef4444' : 'var(--accent)';
-                const lockIcon = r.isLocked ? '🔒' : '🔓';
-                const lockColor = r.isLocked ? '#ef4444' : '#28a745';
-
-                return `
-                <div class="room-card" onclick="joinRoom('${r.id}')">
-                    <div>
-                        <div style="font-weight: 800; color: #fff; display: flex; align-items: center; gap: 8px;">
-                            ${r.roomName} <span style="font-size: 0.8rem; color: ${lockColor}; opacity: 0.8;">${lockIcon}</span>
-                        </div>
-                        <div style="font-size: 0.75rem; color: #94a3b8;">👤 โดย: ${r.creator || 'นิรนาม'}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="color: ${colorClass}; font-size: 0.75rem; font-weight: bold; display: flex; align-items: center; gap: 5px; justify-content: flex-end;">
-                            <span style="width: 8px; height: 8px; background: ${colorClass}; border-radius: 50%; display: inline-block;"></span> Live
-                        </div>
-                        <div style="font-size: 10px; color: #64748b; margin-top: 5px;">จะหายใน: ${timeLeft}s</div>
-                    </div>
-                </div>
-                `;
-            }).join('');
-        }
-
-        async function joinRoom(id) {
-
-            if (!id || id === 'undefined') {
-                showPopup('❌ ข้อผิดพลาด', 'ไม่พบข้อมูลห้อง (ID ไม่ถูกต้อง)');
-                return;
-            }
-
-            const nameInput = document.getElementById('userName');
-            const nick = nameInput.value.trim();
-
-            if (!nick) {
-                showPopup('ข้อมูลไม่ครบ', 'กรุณาใส่ชื่อเล่นของคุณก่อนเข้าห้องครับ');
-                nameInput.focus();
-                nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                nameInput.style.borderColor = '#ef4444';
-                nameInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.2)';
-                setTimeout(() => {
-                    nameInput.style.borderColor = '';
-                    nameInput.style.boxShadow = '';
-                }, 2000);
-                return;
-            }
-
-            const room = localRooms.find(r => r.id === id);
-
-            if (room) {
-                const isCreator = (room.creator || '').toLowerCase() === nick.toLowerCase();
-
-                if (room.isLocked && !isCreator) {
-                    showPopup('🔒 ห้องถูกล็อค', 'ห้องนี้ถูกล็อคโดยเจ้าของห้อง\nเฉพาะเจ้าของเท่านั้นที่เข้าได้', 'lock');
-                    return;
-                }
-            }
-
-            localStorage.setItem('zm_username', nick);
-            window.location.href = `/room.html?id=${id}`;
-        }
-
-        function showPopup(title, text, type = 'info') {
-            const icons = {
-                'success': '🛡️',
-                'error': '❌',
-                'warning': '⚠️',
-                'info': '🔔',
-                'lock': '🔒'
-            };
-            document.getElementById('popupIcon').textContent = icons[type] || icons.info;
-            document.getElementById('popupTitle').textContent = title;
-            document.getElementById('popupText').innerHTML = text;
-            document.getElementById('customPopup').classList.add('show');
-        }
-
-        function closePopup() {
-            document.getElementById('customPopup').classList.remove('show');
-        }
-
-        async function setupAdblock() {
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-            if (isMobile) {
-                let mobileHtml = `
-                    <div style="text-align:left; font-size:0.9rem; line-height:1.6; margin-top:15px;">
-                        <p>📱 <b>ระบบ Ad-Free Proxy Mode:</b> ทำงานอยู่เบื้องต้นแล้วครับ! ระบบจะช่วยกรองสคริปต์โฆษณาออกจากวิดีโอให้คุณอัตโนมัติ ✨</p>
-                        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin:15px 0;">
-                        <p style="color:var(--primary); font-weight:700;">💡 คำแนะนำเพื่อการดูที่ลื่นไหลที่สุด:</p>
-                        <ul style="padding-left:20px; color:#cbd5e1; font-size:0.85rem;">
-                            <li>ใช้เบราว์เซอร์ <b>Brave</b> หรือ <b>Kiwi</b> (รองรับ Extension)</li>
-                            <li>หรือตั้งค่า <b>Private DNS</b> ในเครื่องเป็น <code>dns.adguard.com</code></li>
-                        </ul>
-                    </div>
-                `;
-                showPopup('ระบบ Ad-Filter มือถือ', mobileHtml, 'success');
-                return;
-            }
-
-            const content = `
-                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
-                    <a href="https://chromewebstore.google.com/detail/adblock-%E2%80%94-block-ads-acros/gighmmpiobklfepjocnamgkkbiglidom" target="_blank" 
-                       style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 16px; text-decoration: none; color: white; border: 1px solid rgba(255,255,255,0.1);">
-                       <div style="display: flex; align-items: center; gap: 12px;">
-                           <img src="https://cdn-icons-png.flaticon.com/128/5968/5968868.png" width="30">
-                           <div style="text-align: left;"><div style="font-weight: 700;">AdBlock</div><div style="font-size: 0.7rem; color: #94a3b8;">ยอดนิยมอันดับ 1</div></div>
-                       </div>
-                       <span style="font-size: 0.8rem; background: var(--primary); padding: 4px 10px; border-radius: 8px;">ติดตั้ง</span>
-                    </a>
-                    <a href="https://chromewebstore.google.com/detail/ublock-origin-lite/ddkjiahejlhfcafbddmgiahcphecmpfh" target="_blank" 
-                       style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 16px; text-decoration: none; color: white; border: 1px solid rgba(255,255,255,0.1);">
-                       <div style="display: flex; align-items: center; gap: 12px;">
-                           <img src="https://cdn-icons-png.flaticon.com/128/2583/2583109.png" width="30">
-                           <div style="text-align: left;"><div style="font-weight: 700;">uBlock Origin Lite</div><div style="font-size: 0.7rem; color: #94a3b8;">เบาและกันโฆษณาได้ดีมาก</div></div>
-                       </div>
-                       <span style="font-size: 0.8rem; background: var(--primary); padding: 4px 10px; border-radius: 8px;">ติดตั้ง</span>
-                    </a>
-                    <a href="https://chromewebstore.google.com/detail/ghostery-tracker-ad-block/mlomiejdfkolichcflejclcbmpeaniij" target="_blank" 
-                       style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 16px; text-decoration: none; color: white; border: 1px solid rgba(255,255,255,0.1);">
-                       <div style="display: flex; align-items: center; gap: 12px;">
-                           <img src="https://cdn-icons-png.flaticon.com/128/1042/1042337.png" width="30">
-                           <div style="text-align: left;"><div style="font-weight: 700;">Ghostery</div><div style="font-size: 0.7rem; color: #94a3b8;">บล็อก Tracker และโฆษณา</div></div>
-                       </div>
-                       <span style="font-size: 0.8rem; background: var(--primary); padding: 4px 10px; border-radius: 8px;">ติดตั้ง</span>
-                    </a>
-                </div>
-                <div style="margin-top: 20px; font-size: 0.8rem; color: #f87171;">💡 รบกวนติดตั้งแล้วรีเฟรชหน้าเว็บอีกครั้งครับ</div>
-            `;
-            showPopup('🛡️ เลือก AdBlocker ที่ต้องการ', content, 'success');
-        }
-
-        function showMobileTips() {
-            showPopup('📱 เคล็ดลับสำหรับมือถือ',
-                '1. <b>ติดตั้งเป็นแอป:</b> กดปุ่ม 3 จุดที่เบราว์เซอร์แล้วเลือก "Add to Home Screen" เพื่อใช้งานเหมือนแอปจริง!<br><br>' +
-                '2. <b>โหมดประหยัดพลังงาน:</b> แนะนำให้ปิด Low Power Mode เพื่อให้การซิงค์วิดีโอทำงานได้อย่างราบรื่น<br><br>' +
-                '3. <b>เสียงเบา:</b> หากเสียงเบาเกินไป ให้ลองเสียบหูฟัง หรือใช้เบราว์เซอร์ Chrome เพื่อคุณภาพเสียงที่ดีที่สุด<br><br>' +
-                '4. <b>เน็ตมือถือ:</b> หากใช้เน็ตมือถือ แนะนำให้เลือกเรื่องที่มีคุณภาพ HD หรือ SD เพื่อประหยัดข้อมูล',
-                'info'
-            );
-        }
-
-        function showStatus(text) {
-            const el = document.getElementById('statusMsg');
-            if (!el) return;
-            document.getElementById('statusTxt').textContent = text;
-            el.classList.add('show');
-            setTimeout(() => el.classList.remove('show'), 3000);
-        }
-
-        init();
-    </script>
-    <footer
-        style="text-align: center; padding: 2rem; color: #475569; font-size: 0.8rem; border-top: 1px solid rgba(255,255,255,0.05); margin-top: 2rem;">
-        <p>Created by <span style="color: var(--primary); font-weight: 800;">ZirconX</span> only</p>
-    </footer>
+    <script src="/index.js"></script>
 </body>
 
 </html>
