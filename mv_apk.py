@@ -15,10 +15,15 @@ import re
 import json
 import urllib.parse
 import urllib.request
+import platform
+import webbrowser
+import pathlib
+import signal
 from pathlib import Path
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
-import signal
+from datetime import datetime
+from typing import Optional, Any, Dict, List
 
 # ตรวจสอบว่ารันบน Termux หรือไม่
 IS_TERMUX = os.path.exists("/data/data/com.termux")
@@ -63,10 +68,11 @@ class CustomHandler(SimpleHTTPRequestHandler):
             with ROOMS_LOCK:
                 now = time.time()
                 # ลบห้องที่ไม่มีความเคลื่อนไหว (1 นาที)
-                expired_ids = [rid for rid, rdata in ROOMS.items() if now - rdata.get('lastActive', 0) > 60]
+                expired_ids = [rid for rid, rdata in ROOMS.items() if now - rdata.get('lastActive', 0) > 30]
                 for rid in expired_ids:
-                    del ROOMS[rid]
+                    ROOMS.pop(rid, None)
                 
+                # Sanitize data (Hide Password)
                 for rid, rdata in ROOMS.items():
                     r_copy = rdata.copy()
                     r_copy['id'] = rid
@@ -74,6 +80,44 @@ class CustomHandler(SimpleHTTPRequestHandler):
                     sanitized_rooms[rid] = r_copy
             
             self.wfile.write(json.dumps(sanitized_rooms).encode('utf-8'))
+            return
+
+        # 🟢 API: SSE Stream for Real-time Updates (Alternative to WebSockets)
+        if self.path.startswith('/api/stream?id='):
+            try:
+                parsed_path = urllib.parse.urlparse(self.path)
+                query = urllib.parse.parse_qs(parsed_path.query)
+                rid = query.get('id', [''])[0]
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/event-stream')
+                self.send_header('Cache-Control', 'no-cache')
+                self.send_header('Connection', 'keep-alive')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                last_state = ""
+                while True:
+                    with ROOMS_LOCK:
+                        if rid not in ROOMS:
+                            self.wfile.write(b"event: close\ndata: {}\n\n")
+                            break
+                        
+                        r_copy = ROOMS[rid].copy()
+                        r_copy['id'] = rid
+                        if 'password' in r_copy:
+                            del r_copy['password']
+                        
+                        current_state = json.dumps(r_copy)
+                        
+                    if current_state != last_state:
+                        self.wfile.write(f"data: {current_state}\n\n".encode('utf-8'))
+                        self.wfile.flush()
+                        last_state = current_state
+                    
+                    time.sleep(0.5) # Check for changes every 500ms
+            except Exception:
+                pass # Client disconnected
             return
 
         # 🟢 Local Proxy Endpoint (Optimized)
@@ -111,13 +155,17 @@ class CustomHandler(SimpleHTTPRequestHandler):
                             r'<script[^>]*src="[^"]*analytics[^"]*"[^>]*>.*?</script>',
                             r'<script[^>]*src="[^"]*click[^"]*"[^>]*>.*?</script>',
                             r'<script[^>]*src="[^"]*tracking[^"]*"[^>]*>.*?</script>',
+                            r'<script[^>]*src="[^"]*doubleclick[^"]*"[^>]*>.*?</script>',
                             r'<script[^>]*src="[^"]*google-analytics[^"]*"[^>]*>.*?</script>',
+                            r'<script[^>]*src="[^"]*googletagmanager[^"]*"[^>]*>.*?</script>',
                             r'<ins[^>]*class="adsbygoogle"[^>]*>.*?</ins>',
                             r'<iframe[^>]*src="[^"]*ad[^"]*"[^>]*>.*?</iframe>',
                             r'<div[^>]*class="[^"]*ad[^"]*"[^>]*>.*?</div>',
+                            r'<div[^>]*id="[^"]*ad[^"]*"[^>]*>.*?</div>',
                             r'window\.open\(', 
                             r'eval\s*\(\s*atob',
-                            r'location\.href\s*=\s*[\'"][^#][^\'"]+[\'"]'
+                            r'location\.href\s*=\s*[\'"][^#][^\'"]+[\'"]',
+                            r'addEventListener\(\s*[\'"]click[\'"]\s*,\s*function\s*\(\s*\)\s*\{\s*window\.open', # บล็อก popup on click
                         ]
                         for pattern in ad_patterns:
                             html = re.sub(pattern, '', html, flags=re.I|re.S)
@@ -129,6 +177,11 @@ class CustomHandler(SimpleHTTPRequestHandler):
                         
                         # ลบพวก Overlay ที่บังหน้าจอ
                         html = re.sub(r'z-index\s*:\s*\d{5,}', 'z-index: -1', html)
+                        
+                        # เพิ่ม CSS ซ่อนโฆษณาที่อาจหลงเหลือ
+                        ad_css = '<style>.adsbygoogle, .ad-unit, [id*="google_ads"], [class*="google_ads"] { display: none !important; }</style>'
+                        html = html.replace('</head>', ad_css + '</head>')
+                        
                         content = html.encode('utf-8')
                         
                     PROXY_CACHE[target_url] = (now, content, c_type)
@@ -189,9 +242,10 @@ class CustomHandler(SimpleHTTPRequestHandler):
                     if len(room['emojis']) > 20: room['emojis'] = room['emojis'][-20:]
                 
                 # Merge States
-                for k, v in data.items():
-                    if k not in ['heartbeat', 'participants', 'newChat', 'newEmoji', 'chat', 'emojis']:
-                        room[k] = v
+                if isinstance(data, dict):
+                    for k, v in data.items():
+                        if k not in ['heartbeat', 'participants', 'newChat', 'newEmoji', 'chat', 'emojis']:
+                            room[k] = v
                 
                 room['lastActive'] = time.time()
                 
@@ -202,9 +256,8 @@ class CustomHandler(SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"success": True}).encode('utf-8'))
             return
 
-        # 🟢 API: Verify Password
         if '/api/verify_password' in self.path:
-            rid = data.get('id')
+            rid = str(data.get('id') or '')
             pwd = data.get('password')
             success = False
             with ROOMS_LOCK:
@@ -219,15 +272,17 @@ class CustomHandler(SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps({"success": success}).encode())
             return
 
-        # 🟢 API: Delete Room
         if '/api/delete_room' in self.path:
-            rid = data.get('id')
+            rid = str(data.get('id') or '')
             requester = data.get('user')
             success = False
             with ROOMS_LOCK:
-                if rid in ROOMS and ROOMS[rid].get('creator') == requester:
-                    del ROOMS[rid]
-                    success = True
+                if rid in ROOMS:
+                    room = ROOMS[rid]
+                    if room.get('creator') == requester:
+                        print(f"{Colors.RED}[DEBUG] 🗑️ เจ้าของปิดห้อง: {rid} ({room.get('roomName')}){Colors.ENDC}")
+                        ROOMS.pop(rid, None)
+                        success = True
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -239,11 +294,17 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
 class AndroidMovieServer:
+    port: int
+    server: Any
+    cf_process: Any
+    wake_lock: bool
+
     def __init__(self):
         self.port = 3000
         self.server = None
         self.cf_process = None
-
+        self.wake_lock = False
+    
     def install_system(self):
         """ระบบติดตั้งอัตโนมัติสำหรับ Termux"""
         print(f"\n{Colors.CYAN}{Colors.BOLD}🚀 กำลังเริ่มการติดตั้งระบบสำหรับ Android...{Colors.ENDC}")
@@ -347,14 +408,20 @@ class AndroidMovieServer:
             public_url = None
             print(f"{Colors.BLUE}🔄 กำลังรอ URL สาธารณะ...{Colors.ENDC}")
             start_time = time.time()
-            while time.time() - start_time < 45:
-                line = self.cf_process.stdout.readline()
-                if not line: break
-                if "Registered" in line: print(f"{Colors.BOLD}[CF]{Colors.ENDC} {line.strip()}")
-                match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
-                if match:
-                    public_url = match.group(0)
-                    break
+            timeout = 40
+            is_ready = False
+            while time.time() - start_time < timeout:
+                proc = self.cf_process
+                if proc and proc.stdout:
+                    line = proc.stdout.readline()
+                    if not line: break
+                    
+                    match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
+                    if match:
+                        public_url = match.group(0)
+                        print(f"\n{Colors.GREEN}{Colors.BOLD}🌍 URL สาธารณะของคุณคือ: {public_url}{Colors.ENDC}")
+                        is_ready = True
+                        break
             
             if not public_url:
                 print(f"{Colors.RED}❌ ไม่สามารถขอ URL ได้ (หมดเวลา){Colors.ENDC}")
@@ -375,10 +442,11 @@ class AndroidMovieServer:
             url_ready = False
             for attempt in range(30):
                 try:
-                    with urllib.request.urlopen(public_url, timeout=3) as resp:
-                        if resp.status == 200:
-                            url_ready = True
-                            break
+                    if public_url:
+                        with urllib.request.urlopen(str(public_url), timeout=3) as resp:
+                            if resp.status == 200:
+                                url_ready = True
+                                break
                 except:
                     pass
                 print(".", end="", flush=True)

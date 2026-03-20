@@ -15,7 +15,9 @@ async function init() {
         document.getElementById('closeRoomBtn').style.display = 'block';
         document.getElementById('switchSourceBtn').style.display = 'block';
     }
-    setInterval(fetchRoomData, 1500);
+    
+    // 🔌 Use SSE (Server-Sent Events) for true real-time instead of interval pinging
+    setupSSE();
     setInterval(sendHeartbeat, 5000);
     
     document.getElementById('chatIn').onkeypress = (e) => { if(e.key === 'Enter') sendChat(); };
@@ -41,6 +43,62 @@ async function fetchRoomData() {
     } catch (e) { }
 }
 
+let eventSource = null;
+function setupSSE() {
+    if (eventSource) eventSource.close();
+    eventSource = new EventSource('/api/stream?id=' + roomId);
+    
+    eventSource.onmessage = (e) => {
+        try {
+            const current = JSON.parse(e.data);
+            if (!current || !current.id) return;
+            
+            document.getElementById('uCount').textContent = Object.keys(current.participants || {}).length;
+
+            const stateChanged = !roomData || current.videoUrl !== roomData.videoUrl;
+            const chatChanged = !roomData || (current.chat || []).length !== (roomData.chat || []).length;
+            const emojiChanged = !roomData || (current.emojis || []).length !== (roomData.emojis || []).length;
+            const playbackChanged = !roomData || current.currentTime !== roomData.currentTime || current.isPlaying !== roomData.isPlaying;
+
+            if (stateChanged || chatChanged || emojiChanged || playbackChanged) applySync(current);
+            else roomData = current;
+        } catch(err) {}
+    };
+    
+    eventSource.onerror = () => {
+        eventSource.close();
+        setTimeout(setupSSE, 3000); // Reconnect fallback
+    };
+}
+
+async function pushUpdate(immediate = false) {
+    if (!roomData || roomData.creator !== username) return;
+    isInternalUpdate = true;
+    
+    const payload = { 
+        id: roomId, 
+        videoUrl: roomData.videoUrl, 
+        isLocked: roomData.isLocked 
+    };
+
+    // Add playback state if video player exists
+    if (vPlayer) {
+        payload.currentTime = vPlayer.currentTime;
+        payload.isPlaying = !vPlayer.paused;
+        payload.lastSyncTs = Date.now();
+    }
+
+    try { 
+        await fetch('/api/update_room', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify(payload) 
+        }); 
+    } catch (e) { }
+    
+    setTimeout(() => { isInternalUpdate = false; }, 500);
+}
+
 function applySync(newData) {
     if (isInternalUpdate) return;
     const oldData = roomData;
@@ -64,9 +122,52 @@ function applySync(newData) {
             document.getElementById('playerContent').innerHTML = `<iframe src="${roomData.videoUrl}" frameborder="0" allowfullscreen sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"></iframe>`;
             vPlayer = null;
         } else {
-            document.getElementById('playerContent').innerHTML = `<video id="vPlayer" controls playsinline style="width:100%; height:100%;"><source id="vSource" src="${roomData.videoUrl}" type="video/mp4"></video>`;
+            document.getElementById('playerContent').innerHTML = `<div id="videoLoader" style="position:absolute; inset:0; display:flex; items-center; justify-content:center; background: #000; z-index:10; font-weight:800; font-size:1.2rem; gap:10px;"><span>🚀</span> กำลังโหลดวิดีโอ...</div><video id="vPlayer" controls playsinline style="width:100%; height:100%;"><source id="vSource" src="${roomData.videoUrl}" type="video/mp4"></video>`;
             vPlayer = document.getElementById('vPlayer');
+            vPlayer.onloadeddata = () => {
+                const loader = document.getElementById('videoLoader');
+                if (loader) loader.style.display = 'none';
+                
+                // 💾 Resume Logic (Local Storage) - โหลดเวลาหนังล่าสุดที่ดูค้างไว้
+                if (isCreator) {
+                    const savedTime = localStorage.getItem('zm_resume_' + roomId);
+                    if (savedTime && parseFloat(savedTime) > 0) {
+                        vPlayer.currentTime = parseFloat(savedTime);
+                    }
+                }
+            };
+            vPlayer.onplay = () => { if (isCreator) pushUpdate(true); };
+            vPlayer.onpause = () => { if (isCreator) pushUpdate(true); };
+            vPlayer.onseeked = () => { if (isCreator) pushUpdate(true); };
+            
+            // 💾 บันทึกเวลาหนังล่าสุดลง LocalStorage (ทำงานตลอดเวลาเฉพาะหัวหน้าห้อง)
+            vPlayer.ontimeupdate = () => {
+                if (isCreator && vPlayer) {
+                    localStorage.setItem('zm_resume_' + roomId, vPlayer.currentTime);
+                }
+            };
             vPlayer.load();
+        }
+    }
+
+    // Playback Synchronization for Participants
+    if (!isCreator && vPlayer && roomData.currentTime !== undefined) {
+        // Calculate estimated current time based on latency
+        let targetTime = roomData.currentTime;
+        if (roomData.isPlaying && roomData.lastSyncTs) {
+            const latency = (Date.now() - roomData.lastSyncTs) / 1000;
+            targetTime += latency;
+        }
+
+        const diff = Math.abs(vPlayer.currentTime - targetTime);
+        if (diff > 2.5) { // Threshold for seeking
+            vPlayer.currentTime = targetTime;
+        }
+
+        if (roomData.isPlaying && vPlayer.paused) {
+            vPlayer.play().catch(() => {});
+        } else if (!roomData.isPlaying && !vPlayer.paused) {
+            vPlayer.pause();
         }
     }
 

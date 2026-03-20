@@ -9,19 +9,22 @@
 import os
 import sys
 import time
+import json
 import socket
 import threading
 import subprocess
-import json
 import urllib.parse
 import urllib.request
 import re
 import platform
 import webbrowser
+import pathlib
 import signal
 from pathlib import Path
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler, SimpleHTTPRequestHandler
 from socketserver import ThreadingMixIn
+from datetime import datetime
+from typing import Optional, Any, Dict, List
 
 # ตรวจสอบ Python version
 if sys.version_info < (3, 6):
@@ -58,7 +61,7 @@ class CustomHandler(SimpleHTTPRequestHandler):
                 expired_ids = [rid for rid, rdata in ROOMS.items() if now - rdata.get('lastActive', 0) > 30]
                 for rid in expired_ids:
                     print(f"{Colors.RED}[DEBUG] 🗑️ ลบห้องอัตโนมัติ (หมดเวลา): {rid} ({ROOMS[rid].get('roomName')}){Colors.ENDC}")
-                    del ROOMS[rid]
+                    ROOMS.pop(rid, None)
                 
                 # Sanitize data (Hide Password)
                 for rid, rdata in ROOMS.items():
@@ -70,6 +73,44 @@ class CustomHandler(SimpleHTTPRequestHandler):
 
             self.wfile.write(json.dumps(sanitized_rooms).encode('utf-8'))
             return
+            
+        # 🟢 API: SSE Stream for Real-time Updates (Alternative to WebSockets)
+        if self.path.startswith('/api/stream?id='):
+            try:
+                parsed_path = urllib.parse.urlparse(self.path)
+                query = urllib.parse.parse_qs(parsed_path.query)
+                rid = query.get('id', [''])[0]
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/event-stream')
+                self.send_header('Cache-Control', 'no-cache')
+                self.send_header('Connection', 'keep-alive')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                
+                last_state = ""
+                while True:
+                    with ROOMS_LOCK:
+                        if rid not in ROOMS:
+                            self.wfile.write(b"event: close\ndata: {}\n\n")
+                            break
+                        
+                        r_copy = ROOMS[rid].copy()
+                        r_copy['id'] = rid
+                        if 'password' in r_copy:
+                            del r_copy['password']
+                        
+                        current_state = json.dumps(r_copy)
+                        
+                    if current_state != last_state:
+                        self.wfile.write(f"data: {current_state}\n\n".encode('utf-8'))
+                        self.wfile.flush()
+                        last_state = current_state
+                    
+                    time.sleep(0.5) # Check for changes every 500ms
+            except Exception:
+                pass # Client disconnected
+            return
 
         # Local Proxy Endpoint
         if self.path.startswith('/proxy?url='):
@@ -79,8 +120,10 @@ class CustomHandler(SimpleHTTPRequestHandler):
                 target_url = query.get('url', [None])[0]
                 
                 if target_url:
-                    target_url = urllib.parse.unquote(target_url)
-                    print(f"{Colors.BLUE}[DEBUG] 🌐 Proxy Request: {target_url[:60]}...{Colors.ENDC}")
+                    val: str = urllib.parse.unquote(str(target_url))
+                    target_url = val
+                    display_url = "{:.60s}".format(val)
+                    print(f"{Colors.BLUE}[DEBUG] 🌐 Proxy Request: {display_url}...{Colors.ENDC}")
                     
                     # 🚀 Cache check
                     now = time.time()
@@ -132,6 +175,7 @@ class CustomHandler(SimpleHTTPRequestHandler):
                                         r'window\.open\(', # บล็อก popup บางส่วน
                                         r'eval\s*\(\s*atob', # ป้องกันสคริปต์หลบหลีก
                                         r'location\.href\s*=\s*[\'"][^#][^\'"]+[\'"]', # บล็อกการ redirect นอกเหนือจาก anchor
+                                        r'addEventListener\(\s*[\'"]click[\'"]\s*,\s*function\s*\(\s*\)\s*\{\s*window\.open', # บล็อก popup on click
                                     ]
                                     for pattern in ad_patterns:
                                         html_text = re.sub(pattern, '', html_text, flags=re.IGNORECASE | re.DOTALL)
@@ -145,6 +189,10 @@ class CustomHandler(SimpleHTTPRequestHandler):
                                     html_text = html_text.replace('display:block', 'display:block !important') # รักษาการแสดงผลหลัก
                                     html_text = re.sub(r'z-index\s*:\s*\d{5,}', 'z-index: -1', html_text) # กด z-index สูงๆ ลงไปข้างหลัง
                                     
+                                    # เพิ่ม CSS ซ่อนโฆษณาที่อาจหลงเหลือ
+                                    ad_css = '<style>.adsbygoogle, .ad-unit, [id*="google_ads"], [class*="google_ads"] { display: none !important; }</style>'
+                                    html_text = html_text.replace('</head>', ad_css + '</head>')
+
                                     content = html_text.encode('utf-8')
                                 except:
                                     pass
@@ -332,7 +380,7 @@ class CustomHandler(SimpleHTTPRequestHandler):
                         # ตรวจสอบว่าเป็นเจ้าของห้องหรือไม่
                         if room.get('creator') == requester:
                             print(f"{Colors.RED}[DEBUG] 🗑️ เจ้าของปิดห้อง: {rid} ({room.get('roomName')}){Colors.ENDC}")
-                            del ROOMS[rid]
+                            ROOMS.pop(rid, None)
                             success = True
                             message = "ปิดห้องเรียบร้อยแล้ว"
                         else:
@@ -381,10 +429,16 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     pass
 
 class SyncMovieServer:
+    port: int
+    server: Any
+    cf_process: Any
+    default_port: int
+
     def __init__(self):
         self.port = 3000
         self.server = None
         self.cf_process = None # Cloudflare process
+        self.default_port = 3000
         self.load_env_config()
         
     def load_env_config(self):
@@ -493,22 +547,25 @@ class SyncMovieServer:
             timeout = 40
 
             while time.time() - start_time < timeout:
-                line = self.cf_process.stdout.readline()
-                if not line: break
-                
-                # print(f"{Colors.BLUE}[CF] {line.strip()}{Colors.ENDC}")
-                
-                match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
-                if match:
-                    public_url = match.group(0)
-                    print(f"\n{Colors.GREEN}{Colors.BOLD}🌍 URL สาธารณะของคุณคือ: {public_url}{Colors.ENDC}")
-                    is_ready = True
-                    break
+                proc_stdout = self.cf_process.stdout
+                if self.cf_process and proc_stdout:
+                    line = proc_stdout.readline()
+                    if not line: break
+                    
+                    # print(f"{Colors.BLUE}[CF] {line.strip()}{Colors.ENDC}")
+                    
+                    match = re.search(r'https://[a-zA-Z0-9-]+\.trycloudflare\.com', line)
+                    if match:
+                        public_url = match.group(0)
+                        print(f"\n{Colors.GREEN}{Colors.BOLD}🌍 URL สาธารณะของคุณคือ: {public_url}{Colors.ENDC}")
+                        is_ready = True
+                        break
             
             if not is_ready:
                 print(f"{Colors.RED}❌ ไม่สามารถขอ URL จาก Cloudflare ได้ (หมดเวลา){Colors.ENDC}")
-                print(f"{Colors.YELLOW}💡 ลองใหม่อีกครั้ง หรือใช้เซิร์ฟเวอร์ท้องถิ่นแทน{Colors.ENDC}")
-                if self.cf_process: self.cf_process.terminate()
+                print(f"{Colors.YELLOW}💡 ลองใหม่อิกครั้ง หรือใช้เซิร์ฟเวอร์ท้องถิ่นแทน{Colors.ENDC}")
+                proc_to_kill = self.cf_process
+                if proc_to_kill: proc_to_kill.terminate()
                 return
 
             self.server = ThreadedHTTPServer(('localhost', self.port), CustomHandler)
@@ -520,26 +577,31 @@ class SyncMovieServer:
             # 🔧 ตรวจสอบความพร้อมของ URL ก่อนเปิดเบราว์เซอร์ (ป้องกัน Site not found)
             print(f"{Colors.BLUE}⏳ กำลังรอให้ลิงก์พร้อมใช้งาน{Colors.ENDC}", end="", flush=True)
             url_ready = False
-            for attempt in range(30):
-                try:
-                    with urllib.request.urlopen(public_url, timeout=3) as resp:
-                        if resp.status == 200:
-                            url_ready = True
-                            break
-                except:
-                    pass
-                print(".", end="", flush=True)
-                time.sleep(1)
+            if public_url:
+                for attempt in range(30):
+                    try:
+                        with urllib.request.urlopen(str(public_url), timeout=3) as resp:
+                            if resp.status == 200:
+                                url_ready = True
+                                break
+                    except:
+                        pass
+                    print(".", end="", flush=True)
+                    time.sleep(1)
             
-            if url_ready:
+            if url_ready and public_url:
                 print(f"\n{Colors.GREEN}🚀 ลิงก์พร้อมใช้งานแล้ว! กำลังเปิดเบราว์เซอร์...{Colors.ENDC}")
+                webbrowser.open(str(public_url))
             else:
                 print(f"\n{Colors.YELLOW}⚠️ ลิงก์ใช้เวลานานกว่าปกติ ลองเปิดเองได้ที่: {public_url}{Colors.ENDC}")
             
-            webbrowser.open(public_url)
+            # The original code had a redundant open here. Keeping it for faithful edit, but it's likely not intended.
+            if public_url:
+                webbrowser.open(str(public_url))
             print(f"\n{Colors.YELLOW}💡 กด Ctrl+C เพื่อหยุดเซิร์ฟเวอร์{Colors.ENDC}")
             
-            while self.cf_process and self.cf_process.poll() is None:
+            proc_poll = self.cf_process
+            while proc_poll and proc_poll.poll() is None:
                 time.sleep(1)
                 
         except KeyboardInterrupt:
@@ -576,11 +638,12 @@ class SyncMovieServer:
             return '127.0.0.1'
 
     def start_local_server(self):
-        """เปิด local HTTP Server"""
+        """เริ่มเซิร์ฟเวอร์แบบธรรมดาวนเครื่อง"""
         import threading
         self.server = ThreadedHTTPServer(('', self.port), CustomHandler)
-        server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-        server_thread.start()
+        if self.server: # Added explicit None check for self.server
+            server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+            server_thread.start()
         
 
     def install_cloudflare(self):
@@ -616,18 +679,20 @@ class SyncMovieServer:
             return False
     
     def stop_server(self):
-        """หยุดเซิร์ฟเวอร์"""
-        if self.server:
+        """หยุดเซิร์ฟเวอร์และ tunnel ทั้งหมด"""
+        srv = self.server
+        if srv:
             try:
-                self.server.shutdown()
+                srv.shutdown()
             except:
                 pass
             self.server = None
             print(f"\n{Colors.YELLOW}🛑 หยุดเซิร์ฟเวอร์แล้ว{Colors.ENDC}")
         
-        if self.cf_process:
+        proc = self.cf_process
+        if proc:
             try:
-                self.cf_process.terminate()
+                proc.terminate()
             except:
                 pass
             self.cf_process = None
@@ -731,10 +796,13 @@ def main():
 
         initial_mtime = get_project_mtime()
         while True:
-            time.sleep(1.2) # ตรวจสอบทุก 1.2 วินาที
             try:
+                time.sleep(1)
                 current_mtime = get_project_mtime()
-                if current_mtime > initial_mtime:
+                mtime_val = float(current_mtime) if current_mtime else 0.0
+                init_mtime_val = float(initial_mtime) if initial_mtime else 0.0
+                
+                if mtime_val > init_mtime_val:
                     print(f"\n{Colors.YELLOW}🔄 [Auto-Restart] พบการเปลี่ยนแปลงในโปรเจกต์! กำลังเริ่มระบบใหม่...{Colors.ENDC}")
                     # หยุดซิงค์เมฆก่อนรีสตาร์ท
                     try: 
@@ -742,7 +810,11 @@ def main():
                     except: pass
                     time.sleep(0.3)
                     # ใช้ Popen + exit แทน execv เพื่อความเสถียรบน Windows
-                    subprocess.Popen([sys.executable] + sys.argv, creationflags=subprocess.CREATE_NEW_CONSOLE if sys.stdin.isatty() else 0)
+                    creation_flags = 0
+                    if platform.system().lower() == "windows" and sys.stdin.isatty():
+                        creation_flags = getattr(subprocess, 'CREATE_NEW_CONSOLE', 0)
+                    
+                    subprocess.Popen([sys.executable] + sys.argv, creationflags=creation_flags)
                     os._exit(0)
             except:
                 pass

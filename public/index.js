@@ -133,8 +133,8 @@ function displayMovies(moviesToDisplay = null) {
         return;
     }
 
-    grid.innerHTML = list.map(m => `
-        <div class="movie-card" onclick="selectMovie('${m.id}', this)">
+    grid.innerHTML = list.map((m, index) => `
+        <div class="movie-card opacity-0 translate-y-4" style="animation: fadeInUp 0.5s ease-out ${index * 0.05}s forwards;" onclick="selectMovie('${m.id}', this)">
             <div class="poster-box">
                 <img src="${m.poster}" 
                      loading="lazy" 
